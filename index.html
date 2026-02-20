@@ -105,8 +105,7 @@
           class="biometric-prompt-btn primary"
           onclick="Auth.enableFromPrompt()"
         >
-          <i class="fas fa-fingerprint"></i>
-          Enable Face ID
+          <i class="fas fa-fingerprint"></i> Enable Face ID
         </button>
         <button
           class="biometric-prompt-btn secondary"
@@ -2309,5 +2308,53 @@
     <script src="js/history.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/app.js"></script>
+
+    <!-- Initialization Error Handler -->
+    <script>
+      window.addEventListener("error", function (e) {
+        console.error("Global error:", e.error);
+        // Check if it's a dependency error
+        if (e.message && e.message.includes("Auth is not defined")) {
+          alert(
+            "Error: Auth module failed to load. Please check that all JavaScript files are present in the js/ folder.",
+          );
+        }
+      });
+
+      // Verify all modules loaded
+      document.addEventListener("DOMContentLoaded", function () {
+        console.log("DOM loaded, checking modules...");
+        const requiredModules = ["CONFIG", "Utils", "DB", "UI", "Auth", "App"];
+        const missing = [];
+
+        requiredModules.forEach((mod) => {
+          if (typeof window[mod] === "undefined") {
+            missing.push(mod);
+          }
+        });
+
+        if (missing.length > 0) {
+          console.error("Missing modules:", missing);
+          // Show error in UI if possible
+          const authScreen = document.getElementById("auth-screen");
+          if (authScreen) {
+            authScreen.innerHTML = `
+              <div class="p-6 text-center">
+                <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Loading Error</h2>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                  Failed to load required modules: ${missing.join(", ")}
+                </p>
+                <p class="text-sm text-gray-500">
+                  Please ensure all JavaScript files are in the js/ folder and refresh the page.
+                </p>
+              </div>
+            `;
+          }
+        } else {
+          console.log("✅ All modules loaded successfully");
+        }
+      });
+    </script>
   </body>
 </html>

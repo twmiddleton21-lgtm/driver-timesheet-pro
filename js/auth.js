@@ -15,9 +15,13 @@ const Auth = {
    * Initialize authentication
    */
   async init() {
+    console.log("🔐 Auth initializing...");
+
     // Display version
     const versionEl = document.getElementById("version-display");
-    if (versionEl) versionEl.textContent = `v${CONFIG.APP_VERSION}`;
+    if (versionEl && typeof CONFIG !== "undefined") {
+      versionEl.textContent = `v${CONFIG.APP_VERSION}`;
+    }
 
     // Populate user select
     this.populateUserSelect();
@@ -30,6 +34,11 @@ const Auth = {
 
     // Attempt auto-login
     await this.attemptAutoLogin();
+
+    console.log(
+      "🔐 Auth initialized, biometric available:",
+      this.biometricAvailable,
+    );
   },
 
   /**
@@ -40,6 +49,7 @@ const Auth = {
     try {
       return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     } catch (e) {
+      console.warn("WebAuthn check failed:", e);
       return false;
     }
   },
@@ -64,24 +74,49 @@ const Auth = {
         if (e.key === "Enter") this.loginWithPin();
       });
     }
+
+    // New PIN inputs - auto-focus next
+    const newPin = document.getElementById("new-pin");
+    const confirmPin = document.getElementById("confirm-pin");
+
+    if (newPin && confirmPin) {
+      newPin.addEventListener("input", (e) => {
+        if (e.target.value.length === 4) {
+          confirmPin.focus();
+        }
+      });
+    }
   },
 
   populateUserSelect() {
     const select = document.getElementById("user-select");
     if (!select) return;
 
-    const users = DB.users.getAll();
-    select.innerHTML =
-      '<option value="">-- Select User --</option>' +
-      users
-        .map((u) => `<option value="${u.username}">${u.username}</option>`)
-        .join("");
+    // Ensure DB is available
+    if (typeof DB === "undefined" || !DB.users) {
+      console.error("❌ DB not initialized");
+      select.innerHTML = '<option value="">-- Database Error --</option>';
+      return;
+    }
 
-    // If only one user, auto-select
-    if (users.length === 1) {
-      select.value = users[0].username;
-      const pinSection = document.getElementById("pin-section");
-      if (pinSection) pinSection.classList.remove("hidden");
+    try {
+      const users = DB.users.getAll();
+      select.innerHTML =
+        '<option value="">-- Select User --</option>' +
+        users
+          .map((u) => `<option value="${u.username}">${u.username}</option>`)
+          .join("");
+
+      // If only one user, auto-select
+      if (users.length === 1) {
+        select.value = users[0].username;
+        const pinSection = document.getElementById("pin-section");
+        if (pinSection) pinSection.classList.remove("hidden");
+        this.updateBiometricLoginButton();
+      }
+    } catch (error) {
+      console.error("❌ Error populating users:", error);
+      select.innerHTML = '<option value="">-- Error Loading Users --</option>';
     }
   },
 
@@ -93,38 +128,102 @@ const Auth = {
     const pin = document.getElementById("pin-input")?.value;
 
     if (!username) {
-      UI.showToast("Please select a user", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast("Please select a user", "error");
+      } else {
+        alert("Please select a user");
+      }
       return;
     }
 
     if (!pin || pin.length !== 4) {
-      UI.showToast("Enter 4-digit PIN", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast("Enter 4-digit PIN", "error");
+      } else {
+        alert("Enter 4-digit PIN");
+      }
+      return;
+    }
+
+    // Validate PIN against stored hash
+    if (typeof DB === "undefined" || !DB.users.validatePin) {
+      console.error("❌ DB validation not available");
       return;
     }
 
     if (!DB.users.validatePin(username, pin)) {
-      UI.showToast("Invalid PIN", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast("Invalid PIN", "error");
+      } else {
+        alert("Invalid PIN");
+      }
       const pinInput = document.getElementById("pin-input");
-      if (pinInput) pinInput.value = "";
+      if (pinInput) {
+        pinInput.value = "";
+        pinInput.focus();
+      }
       return;
     }
 
     const user = DB.users.get(username);
-    this.completeLogin(user, false);
+    if (user) {
+      this.completeLogin(user, false);
+    } else {
+      console.error("❌ User not found after validation");
+      if (typeof UI !== "undefined") {
+        UI.showToast("Login error - user not found", "error");
+      }
+    }
   },
 
   /**
    * Complete login process
    */
   completeLogin(user, fromBiometric = false) {
+    console.log(
+      "✅ Login complete for:",
+      user.username,
+      "Biometric:",
+      fromBiometric,
+    );
+
     this.currentUser = user;
-    Settings.lastLoggedInUser = user.username;
+
+    // Store last logged in user
+    if (
+      typeof Settings !== "undefined" &&
+      Settings.lastLoggedInUser !== undefined
+    ) {
+      Settings.lastLoggedInUser = user.username;
+    } else {
+      localStorage.setItem("lastLoggedInUser", user.username);
+    }
 
     // Check biometric status
     this.checkBiometricStatus();
 
     // Notify app of successful login
-    App.onLoginSuccess(user, fromBiometric);
+    if (typeof App !== "undefined" && App.onLoginSuccess) {
+      App.onLoginSuccess(user, fromBiometric);
+    } else {
+      // Fallback if App not loaded
+      this.showMainApp();
+    }
+  },
+
+  /**
+   * Show main app (fallback)
+   */
+  showMainApp() {
+    const authScreen = document.getElementById("auth-screen");
+    const mainApp = document.getElementById("main-app");
+
+    if (authScreen) authScreen.classList.add("hidden");
+    if (mainApp) mainApp.classList.remove("hidden");
+
+    if (typeof UI !== "undefined" && UI.showToast) {
+      UI.showToast(`Welcome, ${this.currentUser?.username}!`, "success");
+    }
   },
 
   /**
@@ -138,8 +237,8 @@ const Auth = {
     this.autoLoginAttempted = false;
 
     // Reset forms
-    if (typeof Scan !== "undefined") Scan.resetForm();
-    if (typeof VOR !== "undefined") VOR.resetForm();
+    if (typeof Scan !== "undefined" && Scan.resetForm) Scan.resetForm();
+    if (typeof VOR !== "undefined" && VOR.resetForm) VOR.resetForm();
 
     // Show auth screen
     const authScreen = document.getElementById("auth-screen");
@@ -155,6 +254,9 @@ const Auth = {
     if (userSelect) userSelect.value = "";
 
     this.updateBiometricLoginButton();
+
+    // Repopulate user list
+    this.populateUserSelect();
   },
 
   /**
@@ -166,6 +268,12 @@ const Auth = {
 
     if (loginForm) loginForm.classList.add("hidden");
     if (createForm) createForm.classList.remove("hidden");
+
+    // Focus on username input
+    setTimeout(() => {
+      const usernameInput = document.getElementById("new-username");
+      if (usernameInput) usernameInput.focus();
+    }, 100);
   },
 
   /**
@@ -188,54 +296,129 @@ const Auth = {
     if (username) username.value = "";
     if (newPin) newPin.value = "";
     if (confirmPin) confirmPin.value = "";
+
+    // Repopulate user select in case new user was added
+    this.populateUserSelect();
   },
 
   /**
-   * Create new user
+   * Create new user - FIXED VERSION
    */
   createUser() {
-    const username = document.getElementById("new-username")?.value.trim();
-    const pin = document.getElementById("new-pin")?.value;
-    const confirmPin = document.getElementById("confirm-pin")?.value;
+    const usernameInput = document.getElementById("new-username");
+    const newPinInput = document.getElementById("new-pin");
+    const confirmPinInput = document.getElementById("confirm-pin");
+
+    const username = usernameInput?.value.trim();
+    const pin = newPinInput?.value;
+    const confirmPin = confirmPinInput?.value;
+
+    console.log("📝 Creating user:", username);
 
     // Validation
     if (!username) {
-      UI.showToast("Enter driver name", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast("Enter driver name", "error");
+      } else {
+        alert("Enter driver name");
+      }
+      if (usernameInput) usernameInput.focus();
+      return;
+    }
+
+    // Check if DB is available
+    if (typeof DB === "undefined" || !DB.users) {
+      console.error("❌ Database not available");
+      if (typeof UI !== "undefined") {
+        UI.showToast("Database error - cannot create user", "error");
+      } else {
+        alert("Database error - cannot create user");
+      }
       return;
     }
 
     if (DB.users.exists(username)) {
-      UI.showToast("User already exists", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast("User already exists", "error");
+      } else {
+        alert("User already exists");
+      }
+      if (usernameInput) usernameInput.focus();
       return;
     }
 
     if (!pin || pin.length !== 4) {
-      UI.showToast("PIN must be 4 digits", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast("PIN must be 4 digits", "error");
+      } else {
+        alert("PIN must be 4 digits");
+      }
+      if (newPinInput) newPinInput.focus();
       return;
     }
 
     if (pin !== confirmPin) {
-      UI.showToast("PINs do not match", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast("PINs do not match", "error");
+      } else {
+        alert("PINs do not match");
+      }
+      if (confirmPinInput) confirmPinInput.value = "";
+      if (confirmPinInput) confirmPinInput.focus();
       return;
     }
 
-    // Create user
+    // Hash the PIN
+    let hashedPin;
+    if (typeof Utils !== "undefined" && Utils.hashPin) {
+      hashedPin = Utils.hashPin(pin);
+    } else {
+      // Fallback simple hash if Utils not available
+      console.warn("⚠️ Utils.hashPin not available, using fallback");
+      hashedPin = btoa(pin); // Basic encoding - NOT for production!
+    }
+
+    // Create user object
     const newUser = {
       username,
-      pin: Utils.hashPin(pin),
+      pin: hashedPin,
       created: new Date().toISOString(),
+      id: Date.now().toString(36) + Math.random().toString(36).substr(2),
     };
 
-    DB.users.add(newUser);
-    this.userJustCreated = newUser;
+    console.log("💾 Saving user to DB:", newUser.username);
 
-    UI.showToast("Driver created successfully", "success");
+    try {
+      // Save to database
+      const saved = DB.users.add(newUser);
 
-    // Check for biometric setup
-    if (this.biometricAvailable) {
-      this.showBiometricSetupPrompt();
-    } else {
-      this.completeLogin(newUser, false);
+      if (!saved) {
+        throw new Error("DB.users.add returned falsy value");
+      }
+
+      this.userJustCreated = newUser;
+
+      if (typeof UI !== "undefined") {
+        UI.showToast("Driver created successfully", "success");
+      }
+
+      console.log("✅ User created:", newUser.username);
+
+      // Check for biometric setup
+      if (this.biometricAvailable) {
+        console.log("🔐 Showing biometric setup prompt");
+        this.showBiometricSetupPrompt();
+      } else {
+        console.log("📱 Biometric not available, completing login");
+        this.completeLogin(newUser, false);
+      }
+    } catch (error) {
+      console.error("❌ Error creating user:", error);
+      if (typeof UI !== "undefined") {
+        UI.showToast("Failed to create user: " + error.message, "error");
+      } else {
+        alert("Failed to create user: " + error.message);
+      }
     }
   },
 
@@ -246,10 +429,21 @@ const Auth = {
     if (this.autoLoginAttempted) return;
     this.autoLoginAttempted = true;
 
-    const users = DB.users.getAll();
-    if (users.length === 0) return;
+    if (typeof DB === "undefined" || !DB.users) {
+      console.warn("⚠️ DB not available for auto-login");
+      return;
+    }
 
-    const lastUser = Settings.lastLoggedInUser;
+    const users = DB.users.getAll();
+    if (users.length === 0) {
+      console.log("ℹ️ No users for auto-login");
+      return;
+    }
+
+    const lastUser =
+      typeof Settings !== "undefined"
+        ? Settings.lastLoggedInUser
+        : localStorage.getItem("lastLoggedInUser");
     const usernameToTry =
       lastUser || (users.length === 1 ? users[0].username : null);
 
@@ -261,7 +455,10 @@ const Auth = {
     // Check if biometric is enabled for this user
     const biometricEnabled =
       localStorage.getItem(`biometric_${usernameToTry}`) === "true";
-    const hasCredential = await DB.getBiometricCredential(usernameToTry);
+    const hasCredential =
+      typeof DB.getBiometricCredential === "function"
+        ? await DB.getBiometricCredential(usernameToTry)
+        : false;
 
     if (!biometricEnabled || !hasCredential || !this.biometricAvailable) {
       this.updateBiometricLoginButton();
@@ -297,18 +494,30 @@ const Auth = {
    * Register biometric credential
    */
   async registerBiometric(username) {
-    const deviceInfo = Utils.getDeviceInfo();
+    const deviceInfo =
+      typeof Utils !== "undefined" && Utils.getDeviceInfo
+        ? Utils.getDeviceInfo()
+        : {
+            platform: "Biometric",
+            hasFaceID: false,
+            isApple: /iPhone|iPad|Mac/.test(navigator.userAgent),
+          };
 
     const challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
 
     const userId = new TextEncoder().encode(username);
 
+    const rpId = window.location.hostname || "localhost";
+
     const options = {
       challenge: challenge,
       rp: {
-        name: CONFIG.APP_NAME,
-        id: window.location.hostname,
+        name:
+          typeof CONFIG !== "undefined"
+            ? CONFIG.APP_NAME
+            : "Driver Timesheet Pro",
+        id: rpId,
       },
       user: {
         id: userId,
@@ -329,29 +538,60 @@ const Auth = {
       extensions: { credProps: true },
     };
 
-    const credential = await navigator.credentials.create({
-      publicKey: options,
-    });
+    try {
+      const credential = await navigator.credentials.create({
+        publicKey: options,
+      });
 
-    if (!credential) {
-      throw new Error("Biometric registration cancelled");
+      if (!credential) {
+        throw new Error("Biometric registration cancelled");
+      }
+
+      if (typeof DB.saveBiometricCredential === "function") {
+        await DB.saveBiometricCredential(username, credential);
+      } else {
+        console.warn("⚠️ DB.saveBiometricCredential not available");
+        // Store minimal info in localStorage as fallback
+        localStorage.setItem(
+          `biometric_cred_${username}`,
+          JSON.stringify({
+            id: credential.id,
+            rawId: Array.from(new Uint8Array(credential.rawId)),
+          }),
+        );
+      }
+
+      return credential;
+    } catch (error) {
+      console.error("Biometric registration error:", error);
+      throw error;
     }
-
-    await DB.saveBiometricCredential(username, credential);
-    return credential;
   },
 
   /**
    * Authenticate with biometric
    */
   async authenticateWithBiometric(username, isAutoLogin = false) {
-    const storedCred = await DB.getBiometricCredential(username);
+    let storedCred;
+
+    if (typeof DB.getBiometricCredential === "function") {
+      storedCred = await DB.getBiometricCredential(username);
+    } else {
+      // Fallback to localStorage
+      const credData = localStorage.getItem(`biometric_cred_${username}`);
+      if (credData) {
+        storedCred = JSON.parse(credData);
+      }
+    }
+
     if (!storedCred) {
       throw new Error("No biometric credential found");
     }
 
     const challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
+
+    const rpId = window.location.hostname || "localhost";
 
     const options = {
       challenge: challenge,
@@ -363,7 +603,7 @@ const Auth = {
         },
       ],
       userVerification: "required",
-      rpId: window.location.hostname,
+      rpId: rpId,
       ...(isAutoLogin && { hints: ["hybrid"] }),
     };
 
@@ -373,7 +613,10 @@ const Auth = {
       throw new Error("Biometric authentication cancelled");
     }
 
-    await DB.updateCredentialLastUsed(username);
+    if (typeof DB.updateCredentialLastUsed === "function") {
+      await DB.updateCredentialLastUsed(username);
+    }
+
     return true;
   },
 
@@ -397,7 +640,10 @@ const Auth = {
     const subtext = document.getElementById("auto-login-subtext");
     const icon = document.getElementById("auto-login-icon");
 
-    const deviceInfo = Utils.getDeviceInfo();
+    const deviceInfo =
+      typeof Utils !== "undefined" && Utils.getDeviceInfo
+        ? Utils.getDeviceInfo()
+        : { platform: "Biometric", hasFaceID: false };
 
     if (text) text.textContent = `Welcome, ${username}`;
     if (subtext)
@@ -423,7 +669,10 @@ const Auth = {
   showQuickAuthButton(username) {
     const btn = document.getElementById("quick-auth-btn");
     const text = document.getElementById("quick-auth-text");
-    const deviceInfo = Utils.getDeviceInfo();
+    const deviceInfo =
+      typeof Utils !== "undefined" && Utils.getDeviceInfo
+        ? Utils.getDeviceInfo()
+        : { platform: "Biometric" };
 
     if (text) text.textContent = `Tap to unlock with ${deviceInfo.platform}`;
     if (btn) btn.classList.remove("hidden");
@@ -445,14 +694,19 @@ const Auth = {
 
     try {
       await this.authenticateWithBiometric(username, false);
-      const user = DB.users.get(username);
+      const user =
+        typeof DB !== "undefined" && DB.users ? DB.users.get(username) : null;
       if (user) {
         this.hideAutoLoginScreen();
         this.completeLogin(user, true);
       }
     } catch (error) {
       this.hideAutoLoginScreen();
-      UI.showToast("Authentication failed. Please use PIN.", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast("Authentication failed. Please use PIN.", "error");
+      } else {
+        alert("Authentication failed. Please use PIN.");
+      }
     }
   },
 
@@ -465,7 +719,11 @@ const Auth = {
       return;
     }
 
-    const deviceInfo = Utils.getDeviceInfo();
+    const deviceInfo =
+      typeof Utils !== "undefined" && Utils.getDeviceInfo
+        ? Utils.getDeviceInfo()
+        : { platform: "Biometric" };
+
     if (text) text.textContent = `Login with ${deviceInfo.platform}`;
     btn.classList.remove("hidden");
   },
@@ -473,9 +731,16 @@ const Auth = {
   async triggerFromLogin() {
     const username =
       document.getElementById("user-select")?.value ||
-      Settings.lastLoggedInUser;
+      (typeof Settings !== "undefined"
+        ? Settings.lastLoggedInUser
+        : localStorage.getItem("lastLoggedInUser"));
+
     if (!username) {
-      UI.showToast("Please select a user first", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast("Please select a user first", "error");
+      } else {
+        alert("Please select a user first");
+      }
       return;
     }
 
@@ -483,14 +748,22 @@ const Auth = {
 
     try {
       await this.authenticateWithBiometric(username, false);
-      const user = DB.users.get(username);
+      const user =
+        typeof DB !== "undefined" && DB.users ? DB.users.get(username) : null;
       if (user) {
         this.hideAutoLoginScreen();
         this.completeLogin(user, true);
       }
     } catch (error) {
       this.hideAutoLoginScreen();
-      UI.showToast("Biometric authentication failed. Please use PIN.", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast(
+          "Biometric authentication failed. Please use PIN.",
+          "error",
+        );
+      } else {
+        alert("Biometric authentication failed. Please use PIN.");
+      }
     }
   },
 
@@ -508,7 +781,13 @@ const Auth = {
     const title = prompt?.querySelector(".biometric-prompt-title");
     const btn = prompt?.querySelector(".biometric-prompt-btn.primary");
 
-    const deviceInfo = Utils.getDeviceInfo();
+    const deviceInfo =
+      typeof Utils !== "undefined" && Utils.getDeviceInfo
+        ? Utils.getDeviceInfo()
+        : {
+            hasFaceID: false,
+            isApple: /iPhone|iPad|Mac/.test(navigator.userAgent),
+          };
 
     if (deviceInfo.hasFaceID) {
       if (icon) icon.className = "fas fa-smile";
@@ -519,6 +798,11 @@ const Auth = {
       if (title) title.textContent = "Enable Touch ID?";
       if (btn)
         btn.innerHTML = '<i class="fas fa-fingerprint"></i> Enable Touch ID';
+    } else {
+      if (icon) icon.className = "fas fa-fingerprint";
+      if (title) title.textContent = "Enable Biometric Login?";
+      if (btn)
+        btn.innerHTML = '<i class="fas fa-fingerprint"></i> Enable Biometric';
     }
 
     if (prompt) prompt.classList.remove("hidden");
@@ -555,10 +839,22 @@ const Auth = {
     } catch (error) {
       console.error("Setup error:", error);
       if (btn) {
-        btn.innerHTML = '<i class="fas fa-fingerprint"></i> Enable Face ID';
+        const deviceInfo =
+          typeof Utils !== "undefined" && Utils.getDeviceInfo
+            ? Utils.getDeviceInfo()
+            : { hasFaceID: false };
+        btn.innerHTML = deviceInfo.hasFaceID
+          ? '<i class="fas fa-smile"></i> Enable Face ID'
+          : '<i class="fas fa-fingerprint"></i> Enable Face ID';
         btn.disabled = false;
       }
-      UI.showToast("Setup failed. You can enable later in settings.", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast(
+          "Setup failed. You can enable later in settings.",
+          "error",
+        );
+      }
+      // Still complete login even if biometric fails
       this.completeLogin(this.userJustCreated, false);
     }
 
@@ -587,12 +883,30 @@ const Auth = {
       localStorage.setItem(`biometric_${this.currentUser.username}`, "true");
       this.biometricEnabled = true;
 
-      Settings.closeBiometricSetupModal();
-      Settings.updateBiometricSettingsUI();
-      UI.showToast(`${Utils.getDeviceInfo().platform} enabled successfully!`);
+      if (
+        typeof Settings !== "undefined" &&
+        Settings.closeBiometricSetupModal
+      ) {
+        Settings.closeBiometricSetupModal();
+      }
+      if (
+        typeof Settings !== "undefined" &&
+        Settings.updateBiometricSettingsUI
+      ) {
+        Settings.updateBiometricSettingsUI();
+      }
+      if (typeof UI !== "undefined") {
+        const deviceInfo =
+          typeof Utils !== "undefined" && Utils.getDeviceInfo
+            ? Utils.getDeviceInfo()
+            : { platform: "Biometric" };
+        UI.showToast(`${deviceInfo.platform} enabled successfully!`);
+      }
     } catch (error) {
       console.error("Setup error:", error);
-      UI.showToast("Setup failed. Please try again.", "error");
+      if (typeof UI !== "undefined") {
+        UI.showToast("Setup failed. Please try again.", "error");
+      }
       if (btn) {
         btn.innerHTML = '<i class="fas fa-fingerprint"></i> Set Up Now';
         btn.disabled = false;
