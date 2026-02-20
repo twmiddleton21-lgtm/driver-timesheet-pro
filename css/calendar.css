@@ -1,0 +1,617 @@
+/* ============================================
+   DRIVER TIMESHEET PRO - CALENDAR STYLES
+   Calendar grid, day cells, and week preview
+   ============================================ */
+
+/* ============================================
+   CALENDAR GRID LAYOUT
+   ============================================ */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+/* ============================================
+   CALENDAR DAY CELLS
+   ============================================ */
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
+  cursor: pointer;
+  background: white;
+  color: #111827;
+  border: 1px solid transparent;
+}
+
+.dark .calendar-day {
+  background: var(--color-dark-surface);
+  color: #f1f5f9;
+}
+
+/* Hover effects */
+.calendar-day:hover:not(.other-month) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-day:active:not(.other-month) {
+  transform: scale(0.95);
+}
+
+/* Other month (padding days) */
+.calendar-day.other-month {
+  opacity: 0.3;
+  background: #f3f4f6;
+  cursor: default;
+}
+
+.dark .calendar-day.other-month {
+  background: #1f2937;
+}
+
+/* Today indicator */
+.calendar-day.today {
+  box-shadow:
+    0 0 0 3px var(--color-primary),
+    0 0 0 5px rgba(59, 130, 246, 0.3);
+  z-index: 10;
+  font-weight: 700;
+}
+
+.calendar-day.today.has-data {
+  box-shadow:
+    0 0 0 3px var(--color-primary),
+    0 0 0 5px rgba(59, 130, 246, 0.5);
+}
+
+/* ============================================
+   DATA INDICATORS (Timesheet, Docs, VOR)
+   ============================================ */
+
+/* Has timesheet data - Green */
+.calendar-day.has-data {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  border: none;
+}
+
+.calendar-day.has-data:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+/* Has documents - Purple */
+.calendar-day.has-docs {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  border: none;
+}
+
+.calendar-day.has-docs:hover {
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+}
+
+/* Has both timesheet AND documents */
+.calendar-day.has-data.has-docs {
+  background: linear-gradient(135deg, #10b981 0%, #8b5cf6 100%);
+  box-shadow:
+    0 4px 12px rgba(16, 185, 129, 0.3),
+    0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Has VOR defect report - Orange */
+.calendar-day.has-vor {
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  border: none;
+}
+
+.calendar-day.has-vor:hover {
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.4);
+}
+
+/* Multiple indicators priority */
+.calendar-day.has-vor.has-data {
+  background: linear-gradient(135deg, #f97316 0%, #10b981 100%);
+}
+
+.calendar-day.has-vor.has-docs {
+  background: linear-gradient(135deg, #f97316 0%, #8b5cf6 100%);
+}
+
+.calendar-day.has-vor.has-data.has-docs {
+  background: linear-gradient(135deg, #f97316 0%, #10b981 50%, #8b5cf6 100%);
+}
+
+/* ============================================
+   DAY CELL CONTENT
+   ============================================ */
+.calendar-day .day-number {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1;
+  z-index: 2;
+}
+
+/* Data indicator bar (small line under number) */
+.calendar-day .data-indicator {
+  background: rgba(255, 255, 255, 0.5);
+  height: 3px;
+  width: 60%;
+  border-radius: 2px;
+  margin-top: 4px;
+}
+
+/* Document indicator dot */
+.calendar-day .doc-indicator {
+  position: absolute;
+  bottom: 6px;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* VOR indicator dot (positioned differently) */
+.calendar-day .vor-indicator {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  background: #fef3c7;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Today badge */
+.calendar-day .today-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.dark .calendar-day .today-badge {
+  border-color: var(--color-dark-card);
+}
+
+/* ============================================
+   WEEK PREVIEW PANEL
+   ============================================ */
+#week-preview {
+  transition: all 0.3s ease;
+}
+
+#week-preview.hidden {
+  display: none;
+}
+
+/* Day preview pills in week preview */
+#preview-days {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+#preview-days::-webkit-scrollbar {
+  display: none;
+}
+
+.preview-day-pill {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.preview-day-pill.has-data {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.dark .preview-day-pill.has-data {
+  background: rgba(22, 101, 52, 0.2);
+  color: #86efac;
+}
+
+.preview-day-pill.empty {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
+.dark .preview-day-pill.empty {
+  background: rgba(75, 85, 99, 0.2);
+  color: #6b7280;
+}
+
+.preview-day-pill .day-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  opacity: 0.8;
+}
+
+.preview-day-pill .hours {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+/* ============================================
+   LEGEND
+   ============================================ */
+.calendar-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.dark .calendar-legend {
+  border-color: #374151;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.dark .legend-item {
+  color: #9ca3af;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend-dot.timesheet {
+  background: var(--color-secondary);
+}
+
+.legend-dot.documents {
+  background: #8b5cf6;
+}
+
+.legend-dot.vor {
+  background: var(--color-vor-orange);
+}
+
+.legend-dot.both {
+  background: linear-gradient(to right, var(--color-secondary), #8b5cf6);
+}
+
+.legend-dot.today {
+  border-radius: 50%;
+  background: white;
+  border: 3px solid var(--color-primary);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+}
+
+/* ============================================
+   MONTH NAVIGATION
+   ============================================ */
+.calendar-nav-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  color: #4b5563;
+}
+
+.dark .calendar-nav-btn {
+  color: #9ca3af;
+}
+
+.calendar-nav-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.dark .calendar-nav-btn:hover {
+  background: var(--color-dark-surface);
+  color: #f1f5f9;
+}
+
+.calendar-nav-btn:active {
+  transform: scale(0.95);
+}
+
+.calendar-month-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+  min-width: 140px;
+  text-align: center;
+}
+
+.dark .calendar-month-title {
+  color: #f1f5f9;
+}
+
+/* ============================================
+   WEEKDAY HEADERS
+   ============================================ */
+.weekday-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-align: center;
+  padding: 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dark .weekday-header {
+  color: #9ca3af;
+}
+
+/* Weekend highlighting */
+.weekday-header.weekend {
+  color: var(--color-danger);
+  opacity: 0.7;
+}
+
+/* ============================================
+   STATS WIDGETS
+   ============================================ */
+.stat-widget {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-widget::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    to right,
+    var(--color-primary),
+    var(--color-secondary)
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stat-widget:hover::before {
+  opacity: 1;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.dark .stat-label {
+  color: #9ca3af;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.dark .stat-value {
+  color: #f1f5f9;
+}
+
+/* Storage widget specific */
+#storage-widget {
+  transition: opacity 0.3s ease;
+}
+
+#storage-widget.hidden {
+  display: none;
+}
+
+/* ============================================
+   RECENT UPLOADS LIST
+   ============================================ */
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f9fafb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.dark .recent-item {
+  background: var(--color-dark-surface);
+}
+
+.recent-item:hover {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+  transform: translateX(4px);
+}
+
+.dark .recent-item:hover {
+  background: #4b5563;
+  border-color: #6b7280;
+}
+
+.recent-item-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.recent-item-icon.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.dark .recent-item-icon.success {
+  background: rgba(22, 101, 52, 0.2);
+  color: #86efac;
+}
+
+.recent-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.recent-item-title {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dark .recent-item-title {
+  color: #f1f5f9;
+}
+
+.recent-item-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+.dark .recent-item-meta {
+  color: #9ca3af;
+}
+
+.recent-item-arrow {
+  color: #9ca3af;
+  transition: transform 0.2s ease;
+}
+
+.recent-item:hover .recent-item-arrow {
+  transform: translateX(4px);
+  color: var(--color-primary);
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+@media (max-width: 380px) {
+  .calendar-grid {
+    gap: 4px;
+  }
+
+  .calendar-day {
+    border-radius: 8px;
+    font-size: 0.8125rem;
+  }
+
+  .calendar-day .day-number {
+    font-size: 0.875rem;
+  }
+
+  .legend-item {
+    font-size: 0.625rem;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+@media (min-width: 640px) {
+  .calendar-day {
+    border-radius: 16px;
+  }
+
+  .calendar-day .day-number {
+    font-size: 1.125rem;
+  }
+
+  .preview-day-pill {
+    width: 72px;
+    height: 72px;
+  }
+}
+
+/* ============================================
+   ANIMATIONS FOR CALENDAR
+   ============================================ */
+.calendar-day {
+  animation: fadeIn 0.3s ease-out backwards;
+}
+
+.calendar-day:nth-child(1) {
+  animation-delay: 0ms;
+}
+.calendar-day:nth-child(2) {
+  animation-delay: 10ms;
+}
+.calendar-day:nth-child(3) {
+  animation-delay: 20ms;
+}
+.calendar-day:nth-child(4) {
+  animation-delay: 30ms;
+}
+.calendar-day:nth-child(5) {
+  animation-delay: 40ms;
+}
+.calendar-day:nth-child(6) {
+  animation-delay: 50ms;
+}
+.calendar-day:nth-child(7) {
+  animation-delay: 60ms;
+}
+/* Continue pattern for all 35-42 possible cells */
+
+/* Slide in animation for week preview */
+#week-preview {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Pulse animation for today's date if no data */
+.calendar-day.today:not(.has-data):not(.has-docs):not(.has-vor) {
+  animation: pulse-ring 2s infinite;
+}

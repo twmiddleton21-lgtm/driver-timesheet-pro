@@ -1,0 +1,735 @@
+/* ============================================
+   DRIVER TIMESHEET PRO - BIOMETRIC AUTH STYLES
+   Face ID / Touch ID authentication
+   ============================================ */
+
+/* ============================================
+   AUTO LOGIN SCREEN
+   ============================================ */
+.auto-login-screen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: opacity 0.3s ease;
+}
+
+.auto-login-screen.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.auto-login-icon {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  margin-bottom: 24px;
+  animation: biometric-pulse 2s infinite;
+}
+
+.auto-login-text {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.auto-login-subtext {
+  font-size: 14px;
+  opacity: 0.8;
+  text-align: center;
+}
+
+.auto-login-fallback {
+  margin-top: 32px;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auto-login-fallback:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================
+   QUICK AUTH BUTTON
+   ============================================ */
+.quick-auth-btn {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  color: #7c3aed;
+  padding: 16px 32px;
+  border-radius: 30px;
+  font-weight: 600;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  z-index: 201;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.quick-auth-btn:active {
+  transform: translateX(-50%) scale(0.95);
+}
+
+.quick-auth-btn i {
+  font-size: 20px;
+}
+
+.quick-auth-btn.hidden {
+  display: none;
+}
+
+/* ============================================
+   BIOMETRIC SETUP PROMPT
+   ============================================ */
+.biometric-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.biometric-prompt-card {
+  background: white;
+  border-radius: 24px;
+  padding: 40px 32px;
+  max-width: 340px;
+  width: 90%;
+  text-align: center;
+  animation: slideUp 0.4s ease-out;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.dark .biometric-prompt-card {
+  background: var(--color-dark-card);
+}
+
+.biometric-prompt-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin: 0 auto 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  animation: biometric-pulse 2s infinite;
+}
+
+.biometric-prompt-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.dark .biometric-prompt-title {
+  color: #f1f5f9;
+}
+
+.biometric-prompt-subtitle {
+  font-size: 15px;
+  color: #6b7280;
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+.dark .biometric-prompt-subtitle {
+  color: #9ca3af;
+}
+
+.biometric-prompt-btn {
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.biometric-prompt-btn.primary {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+}
+
+.biometric-prompt-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4);
+}
+
+.biometric-prompt-btn.secondary {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.dark .biometric-prompt-btn.secondary {
+  background: #374151;
+  color: #d1d5db;
+}
+
+.biometric-prompt-btn.secondary:hover {
+  background: #e5e7eb;
+}
+
+/* ============================================
+   BIOMETRIC SETUP MODAL (Settings)
+   ============================================ */
+.biometric-setup-modal .modal-content {
+  max-width: 400px;
+}
+
+.biometric-setup-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.biometric-setup-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  animation: biometric-pulse 2s infinite;
+}
+
+.biometric-setup-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.dark .biometric-setup-title {
+  color: #f1f5f9;
+}
+
+.biometric-setup-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.dark .biometric-setup-subtitle {
+  color: #9ca3af;
+}
+
+.biometric-feature-list {
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.dark .biometric-feature-list {
+  background: var(--color-dark-surface);
+}
+
+.biometric-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.dark .biometric-feature-item {
+  color: #d1d5db;
+}
+
+.biometric-feature-item:last-child {
+  margin-bottom: 0;
+}
+
+.biometric-feature-item i {
+  color: var(--color-biometric);
+  width: 20px;
+  text-align: center;
+}
+
+.biometric-security-note {
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border: 1px solid #ddd6fe;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.dark .biometric-security-note {
+  background: linear-gradient(
+    135deg,
+    rgba(91, 33, 182, 0.2) 0%,
+    rgba(124, 58, 237, 0.2) 100%
+  );
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.biometric-security-note i {
+  color: var(--color-biometric);
+  font-size: 20px;
+  margin-top: 2px;
+}
+
+.biometric-security-note h4 {
+  font-weight: 600;
+  color: #5b21b6;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.dark .biometric-security-note h4 {
+  color: #c4b5fd;
+}
+
+.biometric-security-note p {
+  font-size: 12px;
+  color: #7c3aed;
+  line-height: 1.4;
+}
+
+.dark .biometric-security-note p {
+  color: #a78bfa;
+}
+
+/* ============================================
+   BIOMETRIC SETTINGS UI
+   ============================================ */
+.biometric-settings-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #f3f4f6;
+  margin-bottom: 16px;
+}
+
+.dark .biometric-settings-card {
+  background: var(--color-dark-card);
+  border-color: #374151;
+}
+
+.biometric-settings-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.biometric-settings-header i {
+  color: var(--color-biometric);
+  font-size: 20px;
+}
+
+.biometric-settings-header h3 {
+  font-weight: 600;
+  color: #111827;
+  font-size: 16px;
+}
+
+.dark .biometric-settings-header h3 {
+  color: #f1f5f9;
+}
+
+.biometric-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.dark .biometric-status-row {
+  background: var(--color-dark-surface);
+}
+
+.biometric-status-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.biometric-status-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.3s ease;
+}
+
+.biometric-status-icon.inactive {
+  background: #e5e7eb;
+  color: #9ca3af;
+}
+
+.dark .biometric-status-icon.inactive {
+  background: #4b5563;
+  color: #9ca3af;
+}
+
+.biometric-status-icon.active {
+  background: var(--color-biometric);
+  color: white;
+}
+
+.biometric-status-text h4 {
+  font-weight: 600;
+  color: #111827;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.dark .biometric-status-text h4 {
+  color: #f1f5f9;
+}
+
+.biometric-status-text p {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.dark .biometric-status-text p {
+  color: #9ca3af;
+}
+
+.biometric-status-text p.enabled {
+  color: var(--color-secondary);
+}
+
+.biometric-status-text p.disabled {
+  color: #9ca3af;
+}
+
+.biometric-info-box {
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.dark .biometric-info-box {
+  background: rgba(91, 33, 182, 0.2);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.biometric-info-box p {
+  font-size: 12px;
+  color: #6d28d9;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.dark .biometric-info-box p {
+  color: #a78bfa;
+}
+
+.biometric-info-box i {
+  margin-top: 2px;
+}
+
+.biometric-setup-action-btn {
+  width: 100%;
+  padding: 14px;
+  background: #f5f3ff;
+  color: #7c3aed;
+  border-radius: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.dark .biometric-setup-action-btn {
+  background: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+}
+
+.biometric-setup-action-btn:hover {
+  background: #ede9fe;
+}
+
+.dark .biometric-setup-action-btn:hover {
+  background: rgba(139, 92, 246, 0.3);
+}
+
+/* ============================================
+   BIOMETRIC BUTTONS
+   ============================================ */
+.biometric-btn {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.biometric-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+}
+
+.biometric-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.biometric-icon-btn {
+  background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+  color: white;
+}
+
+.face-id-icon {
+  background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+}
+
+.touch-id-icon {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+}
+
+/* Biometric quick login button */
+.biometric-quick-login-btn {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.biometric-quick-login-btn:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+}
+
+.biometric-quick-login-btn.hidden {
+  display: none;
+}
+
+/* ============================================
+   BIOMETRIC ANIMATIONS
+   ============================================ */
+@keyframes biometric-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 15px rgba(139, 92, 246, 0);
+  }
+}
+
+.biometric-pulse {
+  animation: biometric-pulse 2s infinite;
+}
+
+/* Scanning animation */
+.biometric-scanning {
+  position: relative;
+  overflow: hidden;
+}
+
+.biometric-scanning::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent, white, transparent);
+  animation: scan-line 2s linear infinite;
+}
+
+@keyframes scan-line {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(400%);
+  }
+}
+
+/* Success animation */
+.biometric-success {
+  animation: biometric-success-pulse 0.6s ease-out;
+}
+
+@keyframes biometric-success-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 20px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* ============================================
+   BIOMETRIC BADGES
+   ============================================ */
+.biometric-badge-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.625rem;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-weight: 500;
+}
+
+/* ============================================
+   DEVICE-SPECIFIC ICONS
+   ============================================ */
+.device-icon-faceid::before {
+  content: "\f118"; /* FontAwesome smile icon */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 400;
+}
+
+.device-icon-touchid::before {
+  content: "\f2a3"; /* FontAwesome fingerprint icon */
+  font-family: "Font Awesome 6 Free";
+  font-weight: 400;
+}
+
+/* ============================================
+   BIOMETRIC ERROR STATES
+   ============================================ */
+.biometric-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.dark .biometric-error {
+  background: rgba(153, 27, 27, 0.2);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.biometric-error i {
+  color: #dc2626;
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.biometric-error h4 {
+  color: #991b1b;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.dark .biometric-error h4 {
+  color: #fca5a5;
+}
+
+.biometric-error p {
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.dark .biometric-error p {
+  color: #fecaca;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+@media (max-width: 380px) {
+  .auto-login-icon {
+    width: 80px;
+    height: 80px;
+    font-size: 36px;
+  }
+
+  .auto-login-text {
+    font-size: 18px;
+  }
+
+  .biometric-prompt-card {
+    padding: 32px 24px;
+  }
+
+  .biometric-prompt-icon {
+    width: 64px;
+    height: 64px;
+    font-size: 28px;
+  }
+
+  .biometric-prompt-title {
+    font-size: 20px;
+  }
+}
+
+@media (min-width: 640px) {
+  .biometric-prompt-card {
+    max-width: 400px;
+  }
+}

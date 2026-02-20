@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Driver Timesheet Pro</title>
+
+    <!-- 
+    This file handles SPA routing for GitHub Pages.
+    When a user refreshes on a route like /history, GitHub Pages serves this 404.html.
+    We then redirect to index.html with the route preserved in the URL hash.
+    -->
+
+    <script>
+      // Single Page Apps for GitHub Pages
+      // MIT License
+      // https://github.com/rafgraph/spa-github-pages
+
+      // This script takes the current URL and converts the path and query
+      // string into just a query string, and then redirects the browser
+      // to the new URL with only a query string and hash fragment.
+
+      (function () {
+        // If there's a query string, append it to the hash
+        var search = window.location.search;
+        var hash = window.location.hash;
+
+        // Get the path segments
+        var pathSegments = window.location.pathname.split("/");
+
+        // Remove empty segments and 'driver-timesheet-pro' if present (repo name)
+        var cleanSegments = pathSegments.filter(function (segment) {
+          return segment && segment !== "driver-timesheet-pro";
+        });
+
+        // Build the route
+        var route = cleanSegments.join("/");
+
+        // If we're already at root or this is the 404.html file itself, don't redirect
+        if (route === "" || route === "404.html" || route === "index.html") {
+          // Just go to root
+          window.location.replace(
+            window.location.origin + "/driver-timesheet-pro/",
+          );
+          return;
+        }
+
+        // Build the new URL with hash-based routing
+        // Format: /driver-timesheet-pro/#/route?query
+        var redirectUrl = window.location.origin + "/driver-timesheet-pro/";
+
+        // Add the route as a hash
+        if (route) {
+          redirectUrl += "#/" + route;
+        }
+
+        // Preserve query parameters by adding them after the hash route
+        if (search) {
+          // Remove leading ? and add as query param
+          var queryString = search.substring(1);
+          if (route) {
+            redirectUrl += "?" + queryString;
+          } else {
+            redirectUrl += "#/?" + queryString;
+          }
+        }
+
+        // Preserve hash fragment (add it at the end)
+        if (hash && hash !== "#") {
+          redirectUrl += hash;
+        }
+
+        // Perform the redirect
+        window.location.replace(redirectUrl);
+      })();
+    </script>
+
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+          Cantarell, sans-serif;
+        background: #0f172a;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        text-align: center;
+      }
+
+      .container {
+        padding: 2rem;
+      }
+
+      .logo {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 2.5rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+      }
+
+      p {
+        color: #94a3b8;
+        margin-bottom: 2rem;
+      }
+
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(59, 130, 246, 0.3);
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .manual-link {
+        margin-top: 2rem;
+        color: #3b82f6;
+        text-decoration: none;
+        font-size: 0.875rem;
+        display: inline-block;
+      }
+
+      .manual-link:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="logo">🚛</div>
+      <h1>Driver Timesheet Pro</h1>
+      <p>Redirecting to app...</p>
+      <div class="spinner"></div>
+      <a href="/driver-timesheet-pro/" class="manual-link">
+        Click here if not redirected
+      </a>
+    </div>
+
+    <!-- Fallback redirect after 5 seconds -->
+    <script>
+      setTimeout(function () {
+        window.location.href = "/driver-timesheet-pro/";
+      }, 5000);
+    </script>
+  </body>
+</html>

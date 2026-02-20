@@ -1,0 +1,271 @@
+/**
+ * app.js - Main Application Controller
+ * Coordinates all modules for the Driver Timesheet Pro application
+ */
+
+const App = {
+  initialized: false,
+  currentUser: null,
+
+  /**
+   * Initialize the application
+   */
+  async init() {
+    if (this.initialized) return;
+
+    console.log(
+      `🚛 Driver Timesheet Pro v${CONFIG.APP_VERSION} initializing...`,
+    );
+
+    try {
+      // Initialize database first
+      await DB.init();
+      console.log("✅ Database initialized");
+
+      // Initialize all modules
+      Utils.init();
+      UI.init();
+      Calendar.init();
+      Scan.init();
+      VOR.init();
+      History.init();
+      Settings.init();
+
+      // Setup global event listeners
+      this.setupGlobalEvents();
+
+      this.initialized = true;
+      console.log("✅ Application initialized successfully");
+    } catch (error) {
+      console.error("❌ Initialization failed:", error);
+      UI.showToast("Failed to initialize app. Please refresh.", "error");
+    }
+  },
+
+  /**
+   * Handle successful login
+   * @param {Object} user - User object
+   * @param {boolean} fromBiometric - Whether login was via biometric
+   */
+  onLoginSuccess(user, fromBiometric = false) {
+    console.log(
+      `✅ Login successful: ${user.username} (${fromBiometric ? "biometric" : "PIN"})`,
+    );
+
+    this.currentUser = user;
+
+    // Hide auth screen, show main app
+    const authScreen = document.getElementById("auth-screen");
+    const mainApp = document.getElementById("main-app");
+
+    if (authScreen) authScreen.classList.add("hidden");
+    if (mainApp) mainApp.classList.remove("hidden");
+
+    // Initialize settings with current user
+    Settings.init(user);
+
+    // Set default dates
+    this.setDefaultDates();
+
+    // Initial render
+    Calendar.render();
+    Calendar.updateStats();
+    Calendar.renderRecent();
+    DB.checkStorageQuota();
+    Settings.updateApiKeyStatus();
+    Settings.updateStorageWidgetVisibility();
+
+    // Show welcome toast
+    const deviceInfo = Utils.getDeviceInfo();
+    const welcomeMsg = fromBiometric
+      ? `Welcome, ${user.username} (${deviceInfo.platform})`
+      : `Welcome, ${user.username}`;
+    UI.showToast(welcomeMsg);
+  },
+
+  /**
+   * Switch between views
+   * @param {string} viewName - Name of view to switch to
+   */
+  switchView(viewName) {
+    // Hide all views
+    document.querySelectorAll(".view-section").forEach((el) => {
+      el.classList.add("hidden");
+    });
+
+    // Show selected view
+    const targetView = document.getElementById(`${viewName}-view`);
+    if (targetView) {
+      targetView.classList.remove("hidden");
+    }
+
+    // Update nav items
+    document.querySelectorAll(".nav-item").forEach((el) => {
+      el.classList.remove("active", "text-primary", "vor-active");
+      el.classList.add("text-gray-400");
+    });
+
+    const activeBtn = document.querySelector(`[data-view="${viewName}"]`);
+    if (activeBtn) {
+      if (viewName === "vor") {
+        activeBtn.classList.add("active", "vor-active");
+      } else {
+        activeBtn.classList.add("active", "text-primary");
+      }
+      activeBtn.classList.remove("text-gray-400");
+    }
+
+    // View-specific initialization
+    if (viewName === "history") History.render();
+    if (viewName === "dashboard") {
+      Calendar.render();
+      Calendar.updateStats();
+    }
+    if (viewName === "scan") Settings.updateApiKeyStatus();
+    if (viewName === "vor") Settings.updateApiKeyStatus();
+    if (viewName === "settings") {
+      Settings.updateApiKeyStatus();
+      Settings.updateBiometricSettingsUI();
+    }
+    if (viewName === "archive") History.renderArchiveList();
+  },
+
+  /**
+   * Set default dates for scan and VOR views
+   */
+  setDefaultDates() {
+    const today = new Date();
+
+    // Set scan date to next Saturday (week ending)
+    const saturday = new Date(today);
+    saturday.setDate(today.getDate() + (6 - today.getDay()));
+    const scanDateSelect = document.getElementById("scan-date-select");
+    if (scanDateSelect) {
+      scanDateSelect.value = Utils.formatDateForInput(saturday);
+      // Trigger display update
+      const event = new Event("change");
+      scanDateSelect.dispatchEvent(event);
+    }
+
+    // Set VOR date to today
+    const vorDateSelect = document.getElementById("vor-date-select");
+    if (vorDateSelect) {
+      vorDateSelect.value = Utils.formatDateForInput(today);
+    }
+  },
+
+  /**
+   * Setup global event listeners
+   */
+  setupGlobalEvents() {
+    // Prevent zoom on double-tap (iOS)
+    let lastTouchEnd = 0;
+    document.addEventListener(
+      "touchend",
+      (e) => {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+          e.preventDefault();
+        }
+        lastTouchEnd = now;
+      },
+      false,
+    );
+
+    // Handle visibility change (app resume)
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        console.log("App resumed");
+      }
+    });
+
+    // Handle online/offline
+    window.addEventListener("online", () => {
+      UI.showToast("Back online", "success");
+    });
+
+    window.addEventListener("offline", () => {
+      UI.showToast("Offline mode - data saved locally", "info");
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener("keydown", (e) => {
+      // Escape to close modals
+      if (e.key === "Escape") {
+        this.closeAllModals();
+      }
+
+      // Ctrl/Cmd + number for view switching
+      if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "4") {
+        e.preventDefault();
+        const views = ["dashboard", "scan", "vor", "history"];
+        const viewIndex = parseInt(e.key) - 1;
+        if (views[viewIndex]) {
+          this.switchView(views[viewIndex]);
+        }
+      }
+    });
+
+    // Handle app install prompt (PWA)
+    window.addEventListener("beforeinstallprompt", (e) => {
+      window.deferredInstallPrompt = e;
+      console.log("👍 App installable");
+    });
+
+    // Handle app installed
+    window.addEventListener("appinstalled", () => {
+      console.log("🎉 App installed");
+      window.deferredInstallPrompt = null;
+      UI.showToast("App installed successfully!", "success");
+    });
+  },
+
+  /**
+   * Close all open modals
+   */
+  closeAllModals() {
+    const modals = [
+      "gemini-key-modal",
+      "biometric-setup-modal",
+      "delete-modal",
+      "remove-account-modal",
+      "week-modal",
+      "vor-detail-modal",
+      "share-fallback-modal",
+      "fullscreen-viewer",
+    ];
+
+    modals.forEach((id) => {
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.classList.add("hidden");
+      }
+    });
+
+    // Restore body scroll
+    document.body.style.overflow = "";
+  },
+
+  /**
+   * Get current user
+   * @returns {Object|null}
+   */
+  getCurrentUser() {
+    return this.currentUser;
+  },
+
+  /**
+   * Check if user is authenticated
+   * @returns {boolean}
+   */
+  isAuthenticated() {
+    return !!this.currentUser;
+  },
+};
+
+// Initialize when DOM is ready
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => App.init());
+} else {
+  App.init();
+}

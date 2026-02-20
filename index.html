@@ -1,0 +1,2313 @@
+<!doctype html>
+<html lang="en" class="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#3B82F6" />
+    <meta
+      name="description"
+      content="Driver Timesheet Pro - Professional timesheet and VOR defect reporting with AI-powered OCR"
+    />
+
+    <title>Driver Archive</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/main.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/calendar.css" />
+    <link rel="stylesheet" href="css/scan.css" />
+    <link rel="stylesheet" href="css/vor.css" />
+    <link rel="stylesheet" href="css/biometric.css" />
+
+    <!-- Theme initialization (runs immediately) -->
+    <script>
+      (function () {
+        const isDark = localStorage.getItem("darkMode") === "true";
+        if (isDark) {
+          document.documentElement.classList.remove("light");
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
+
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#3B82F6",
+              secondary: "#10B981",
+              warning: "#F59E0B",
+              danger: "#EF4444",
+              dark: "#0F172A",
+              "dark-card": "#1E293B",
+              "dark-surface": "#334155",
+              "vor-orange": "#F97316",
+              biometric: "#8B5CF6",
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body
+    class="bg-gray-50 dark:bg-dark text-gray-800 dark:text-gray-100 transition-colors duration-300 min-h-screen pb-20"
+  >
+    <!-- Auto Login Screen -->
+    <div id="auto-login-screen" class="auto-login-screen hidden">
+      <div class="auto-login-icon" id="auto-login-icon">
+        <i class="fas fa-fingerprint"></i>
+      </div>
+      <div class="auto-login-text" id="auto-login-text">Authenticating...</div>
+      <div class="auto-login-subtext" id="auto-login-subtext">
+        Touch ID / Face ID
+      </div>
+      <button class="auto-login-fallback" onclick="Auth.cancelAutoLogin()">
+        Use PIN Instead
+      </button>
+    </div>
+
+    <!-- Quick Auth Button -->
+    <button
+      id="quick-auth-btn"
+      class="quick-auth-btn hidden"
+      onclick="Auth.triggerQuickAuth()"
+    >
+      <i class="fas fa-fingerprint"></i>
+      <span id="quick-auth-text">Tap to unlock with Face ID</span>
+    </button>
+
+    <!-- Biometric Setup Prompt -->
+    <div id="biometric-setup-prompt" class="biometric-prompt-overlay hidden">
+      <div class="biometric-prompt-card">
+        <div class="biometric-prompt-icon biometric-icon">
+          <i class="fas fa-fingerprint"></i>
+        </div>
+        <h2 class="biometric-prompt-title">Enable Face ID?</h2>
+        <p class="biometric-prompt-subtitle">
+          Use Face ID or Touch ID for faster, more secure access to your
+          timesheets. You can always change this in settings.
+        </p>
+        <button
+          class="biometric-prompt-btn primary"
+          onclick="Auth.enableFromPrompt()"
+        >
+          <i class="fas fa-fingerprint"></i>
+          Enable Face ID
+        </button>
+        <button
+          class="biometric-prompt-btn secondary"
+          onclick="Auth.skipSetup()"
+        >
+          Not Now
+        </button>
+      </div>
+    </div>
+
+    <!-- Auth Screen -->
+    <div
+      id="auth-screen"
+      class="fixed inset-0 z-50 bg-white dark:bg-dark flex flex-col items-center justify-center p-6"
+    >
+      <div class="w-full max-w-sm">
+        <div class="text-center mb-8">
+          <div
+            class="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center text-white text-3xl shadow-lg shadow-blue-500/30 mx-auto mb-4"
+          >
+            <i class="fas fa-truck"></i>
+          </div>
+          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+            Driver Timesheet Pro
+          </h1>
+          <p
+            class="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center justify-center gap-2"
+          >
+            <span
+              class="text-xs bg-primary/10 text-primary px-2 py-1 rounded"
+              id="version-display"
+              >v5.3.0</span
+            >
+            <span
+              class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded"
+              >Face ID Ready</span
+            >
+          </p>
+        </div>
+
+        <!-- Login Form -->
+        <div id="login-form" class="space-y-4">
+          <div>
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >Select Driver</label
+            >
+            <select
+              id="user-select"
+              class="w-full p-4 bg-gray-100 dark:bg-dark-card rounded-xl border-2 border-transparent focus:border-primary outline-none text-gray-900 dark:text-white"
+            >
+              <option value="">-- Select User --</option>
+            </select>
+          </div>
+
+          <div id="pin-section" class="hidden">
+            <input
+              type="password"
+              id="pin-input"
+              maxlength="4"
+              inputmode="numeric"
+              class="w-full p-4 bg-gray-100 dark:bg-dark-card rounded-xl border-2 border-transparent focus:border-primary outline-none text-center text-2xl tracking-widest text-gray-900 dark:text-white"
+              placeholder="••••"
+            />
+          </div>
+
+          <button
+            onclick="Auth.loginWithPin()"
+            id="login-btn"
+            class="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-4 rounded-xl shadow-lg shadow-blue-500/30 transition-all transform active:scale-95"
+          >
+            Login with PIN
+          </button>
+
+          <button
+            id="biometric-quick-login-btn"
+            onclick="Auth.triggerFromLogin()"
+            class="hidden w-full bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold py-4 rounded-xl shadow-lg shadow-purple-500/30 transition-all transform active:scale-95"
+          >
+            <i class="fas fa-fingerprint mr-2"></i>
+            <span id="biometric-login-text">Login with Face ID</span>
+          </button>
+
+          <div class="relative my-6">
+            <div class="absolute inset-0 flex items-center">
+              <div
+                class="w-full border-t border-gray-300 dark:border-gray-600"
+              ></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+              <span class="px-2 bg-white dark:bg-dark text-gray-500"
+                >Admin Only</span
+              >
+            </div>
+          </div>
+
+          <button
+            onclick="Auth.showCreateUser()"
+            class="w-full border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold py-4 rounded-xl hover:bg-gray-50 dark:hover:bg-dark-card transition-all"
+          >
+            <i class="fas fa-user-plus mr-2"></i>Create New Driver
+          </button>
+        </div>
+
+        <!-- Create User Form -->
+        <div id="create-user-form" class="hidden space-y-4">
+          <h2
+            class="text-xl font-bold text-center mb-4 text-gray-900 dark:text-white"
+          >
+            Create New Driver
+          </h2>
+
+          <input
+            type="text"
+            id="new-username"
+            placeholder="Driver Name"
+            class="w-full p-4 bg-gray-100 dark:bg-dark-card rounded-xl border-2 border-transparent focus:border-primary outline-none text-gray-900 dark:text-white"
+          />
+
+          <input
+            type="password"
+            id="new-pin"
+            maxlength="4"
+            inputmode="numeric"
+            placeholder="Create 4-digit PIN"
+            class="w-full p-4 bg-gray-100 dark:bg-dark-card rounded-xl border-2 border-transparent focus:border-primary outline-none text-center text-2xl tracking-widest text-gray-900 dark:text-white"
+          />
+
+          <input
+            type="password"
+            id="confirm-pin"
+            maxlength="4"
+            inputmode="numeric"
+            placeholder="Confirm PIN"
+            class="w-full p-4 bg-gray-100 dark:bg-dark-card rounded-xl border-2 border-transparent focus:border-primary outline-none text-center text-2xl tracking-widest text-gray-900 dark:text-white"
+          />
+
+          <div
+            class="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800"
+          >
+            <label
+              class="block text-sm font-medium text-blue-900 dark:text-blue-300 mb-2"
+            >
+              <i class="fas fa-brain mr-2"></i>Gemini AI OCR + Document Storage
+            </label>
+            <p class="text-xs text-blue-700 dark:text-blue-400">
+              Uses Google Gemini 2.0 Flash for timesheets. Additional documents
+              stored securely in IndexedDB.
+            </p>
+          </div>
+
+          <div class="flex gap-3">
+            <button
+              onclick="Auth.hideCreateUser()"
+              class="flex-1 py-4 rounded-xl border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-50 dark:hover:bg-dark-card transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onclick="Auth.createUser()"
+              class="flex-1 bg-primary hover:bg-blue-600 text-white font-semibold py-4 rounded-xl shadow-lg"
+            >
+              Create
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" class="hidden">
+      <!-- Header -->
+      <header class="bg-white dark:bg-dark-card shadow-sm sticky top-0 z-40">
+        <div class="px-4 py-3 flex items-center justify-center relative">
+          <h1 class="text-xl font-bold text-gray-900 dark:text-white">
+            Driver Archive
+          </h1>
+          <button
+            onclick="App.switchView('settings')"
+            class="absolute right-4 touch-btn flex items-center justify-center text-gray-500 hover:text-primary transition-colors"
+          >
+            <i class="fas fa-cog text-xl"></i>
+          </button>
+        </div>
+      </header>
+
+      <main class="px-4 py-4 max-w-lg mx-auto">
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="view-section fade-in space-y-4">
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <div class="flex items-center justify-between mb-4">
+              <button
+                onclick="Calendar.changeMonth(-1)"
+                class="touch-btn w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
+              >
+                <i
+                  class="fas fa-chevron-left text-gray-600 dark:text-gray-400"
+                ></i>
+              </button>
+              <h2
+                class="text-lg font-bold text-gray-900 dark:text-white"
+                id="calendar-month-year"
+              >
+                February 2024
+              </h2>
+              <button
+                onclick="Calendar.changeMonth(1)"
+                class="touch-btn w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface transition-colors"
+              >
+                <i
+                  class="fas fa-chevron-right text-gray-600 dark:text-gray-400"
+                ></i>
+              </button>
+            </div>
+
+            <div class="grid grid-cols-7 gap-1 mb-2 text-center">
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                >S</span
+              >
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                >M</span
+              >
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                >T</span
+              >
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                >W</span
+              >
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                >T</span
+              >
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                >F</span
+              >
+              <span class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                >S</span
+              >
+            </div>
+
+            <div id="calendar-grid" class="calendar-grid"></div>
+
+            <div
+              class="flex items-center justify-center gap-4 mt-4 text-xs text-gray-500 dark:text-gray-400 flex-wrap"
+            >
+              <div class="flex items-center gap-1">
+                <div class="w-3 h-3 rounded bg-green-500"></div>
+                <span>Timesheet</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <div class="w-3 h-3 rounded bg-purple-500"></div>
+                <span>Documents</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <div class="w-3 h-3 rounded bg-orange-500"></div>
+                <span>VOR</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <div
+                  class="w-3 h-3 rounded bg-gradient-to-r from-green-500 to-purple-500"
+                ></div>
+                <span>Both</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <div
+                  class="w-3 h-3 rounded-full bg-primary ring-2 ring-primary ring-offset-2"
+                ></div>
+                <span>Today</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            id="week-preview"
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hidden"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <h3
+                class="font-bold text-gray-900 dark:text-white"
+                id="preview-week-range"
+              >
+                Week of Feb 5-11
+              </h3>
+              <span
+                class="text-sm font-bold text-primary"
+                id="preview-total-hours"
+                >60h</span
+              >
+            </div>
+            <div
+              class="flex gap-2 overflow-x-auto pb-2"
+              id="preview-days"
+            ></div>
+
+            <div id="preview-documents" class="flex gap-2 mt-3 mb-3 hidden">
+              <div
+                class="flex items-center gap-2 text-xs text-purple-600 bg-purple-50 dark:bg-purple-900/20 px-3 py-1.5 rounded-full"
+              >
+                <i class="fas fa-paperclip"></i>
+                <span id="preview-doc-count">3 docs attached</span>
+              </div>
+            </div>
+
+            <button
+              onclick="Calendar.openSelectedWeek()"
+              class="w-full mt-3 py-3 bg-primary/10 dark:bg-primary/20 text-primary font-semibold rounded-xl hover:bg-primary/20 transition-colors"
+            >
+              View Full Details
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div
+              class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+            >
+              <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                This Month
+              </p>
+              <p
+                class="text-2xl font-bold text-gray-900 dark:text-white"
+                id="stat-month-hours"
+              >
+                0h
+              </p>
+            </div>
+            <div
+              class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+              id="storage-widget"
+            >
+              <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                Storage Used
+              </p>
+              <p
+                class="text-2xl font-bold text-gray-900 dark:text-white"
+                id="stat-storage-used"
+              >
+                0 MB
+              </p>
+              <div class="storage-bar">
+                <div
+                  class="storage-fill"
+                  id="storage-bar-fill"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">
+              Recent Uploads
+            </h3>
+            <div id="recent-list" class="space-y-2"></div>
+          </div>
+        </div>
+
+        <!-- Scan View -->
+        <div id="scan-view" class="view-section hidden fade-in space-y-4">
+          <div class="text-center mb-4">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+              Scan Timesheet & Docs
+            </h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              Timesheet required • Additional docs optional
+            </p>
+          </div>
+
+          <!-- API Key Warning -->
+          <div
+            id="api-key-warning"
+            class="hidden bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-200 dark:border-amber-800"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center"
+              >
+                <i class="fas fa-key text-amber-600"></i>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-bold text-amber-800 dark:text-amber-300">
+                  Gemini API Key Required
+                </p>
+                <p class="text-xs text-amber-700 dark:text-amber-400">
+                  Add your API key in Settings to enable AI scanning
+                </p>
+              </div>
+              <button
+                onclick="Settings.showGeminiKeyModal()"
+                class="px-3 py-1 bg-amber-600 text-white rounded-lg text-xs font-medium"
+              >
+                Add Key
+              </button>
+            </div>
+          </div>
+
+          <!-- Week Ending Date -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 mb-4"
+          >
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Week Ending Date (Saturday)
+              <span
+                id="auto-detected-badge"
+                class="hidden ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full"
+              >
+                <i class="fas fa-robot mr-1"></i>Auto-detected
+              </span>
+            </label>
+            <input
+              type="date"
+              id="scan-date-select"
+              class="w-full p-3 bg-gray-100 dark:bg-dark-surface rounded-xl border-2 border-transparent focus:border-primary outline-none text-gray-900 dark:text-white"
+            />
+            <p
+              class="text-xs text-gray-500 dark:text-gray-400 mt-2"
+              id="selected-week-info"
+            >
+              Week ending auto-detected from timesheet
+            </p>
+          </div>
+
+          <!-- Timesheet Upload (OCR - MANDATORY) -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <h3
+                class="font-medium text-gray-900 dark:text-white flex items-center gap-2"
+              >
+                <i class="fas fa-clock text-primary"></i>
+                Timesheet
+                <span
+                  class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold"
+                  >REQUIRED</span
+                >
+              </h3>
+              <span class="text-xs text-red-500 font-medium" id="front-status"
+                >Required</span
+              >
+            </div>
+            <div
+              class="upload-zone rounded-xl p-6 text-center cursor-pointer relative overflow-hidden bg-gray-50 dark:bg-dark-surface image-preview-container"
+              id="timesheet-upload-zone"
+              onclick="document.getElementById('file-front').click()"
+              ondrop="Scan.handleDrop(event, 'front')"
+              ondragover="Scan.handleDragOver(event)"
+              ondragleave="Scan.handleDragLeave(event)"
+            >
+              <input
+                type="file"
+                id="file-front"
+                class="hidden"
+                accept="image/*"
+                capture="environment"
+                onchange="Scan.handleFileSelect(event, 'front')"
+              />
+              <div id="upload-front-default">
+                <i class="fas fa-camera text-3xl text-gray-400 mb-2"></i>
+                <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                  Tap to take timesheet photo
+                </p>
+                <p class="text-xs text-gray-400 mt-1">
+                  This is required for processing
+                </p>
+              </div>
+              <img
+                id="preview-front"
+                class="hidden w-full h-48 object-cover rounded-lg mx-auto"
+              />
+              <div
+                id="image-processing-indicator"
+                class="image-processing-overlay hidden"
+              >
+                <div class="text-center">
+                  <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                  <p>Processing...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Additional Documents (No OCR) -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <h3
+                class="font-medium text-gray-900 dark:text-white flex items-center gap-2"
+              >
+                <i class="fas fa-file-alt text-purple-500"></i>
+                Additional Documents
+              </h3>
+              <span
+                class="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full font-medium"
+                id="doc-count-badge"
+                >0/3</span
+              >
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              Tap to add. Documents save without AI processing.
+            </p>
+
+            <div class="doc-upload-grid">
+              <!-- Timesheet Front -->
+              <div
+                class="doc-upload-item"
+                id="doc-1-item"
+                onclick="Scan.handleDocItemClick(1)"
+              >
+                <input
+                  type="file"
+                  id="file-doc-1"
+                  class="hidden"
+                  accept="image/*,application/pdf"
+                  onchange="Scan.handleDocSelect(event, 1)"
+                />
+                <i class="fas fa-file-image text-gray-400" id="doc-1-icon"></i>
+                <span class="doc-label text-gray-600 dark:text-gray-300"
+                  >Timesheet<br />Front</span
+                >
+                <span class="doc-status" id="doc-1-status">Add</span>
+                <img id="doc-1-preview" class="doc-preview-thumb hidden" />
+
+                <div
+                  class="doc-actions-bar"
+                  id="doc-1-actions"
+                  style="display: none"
+                >
+                  <button
+                    class="doc-action-btn view-btn"
+                    onclick="
+                      event.stopPropagation();
+                      Scan.viewDoc(1);
+                    "
+                    title="View"
+                  >
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <button
+                    class="doc-action-btn share-btn"
+                    onclick="
+                      event.stopPropagation();
+                      Scan.shareDoc(1);
+                    "
+                    title="Share"
+                  >
+                    <i class="fas fa-share-alt"></i>
+                  </button>
+                  <button
+                    class="doc-action-btn delete-btn"
+                    onclick="
+                      event.stopPropagation();
+                      Scan.removeDoc(1);
+                    "
+                    title="Delete"
+                  >
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Fuel And Expense -->
+              <div
+                class="doc-upload-item"
+                id="doc-2-item"
+                onclick="Scan.handleDocItemClick(2)"
+              >
+                <input
+                  type="file"
+                  id="file-doc-2"
+                  class="hidden"
+                  accept="image/*,application/pdf"
+                  onchange="Scan.handleDocSelect(event, 2)"
+                />
+                <i class="fas fa-gas-pump text-gray-400" id="doc-2-icon"></i>
+                <span class="doc-label text-gray-600 dark:text-gray-300"
+                  >Fuel &<br />Expense</span
+                >
+                <span class="doc-status" id="doc-2-status">Add</span>
+                <img id="doc-2-preview" class="doc-preview-thumb hidden" />
+
+                <div
+                  class="doc-actions-bar"
+                  id="doc-2-actions"
+                  style="display: none"
+                >
+                  <button
+                    class="doc-action-btn view-btn"
+                    onclick="
+                      event.stopPropagation();
+                      Scan.viewDoc(2);
+                    "
+                    title="View"
+                  >
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <button
+                    class="doc-action-btn share-btn"
+                    onclick="
+                      event.stopPropagation();
+                      Scan.shareDoc(2);
+                    "
+                    title="Share"
+                  >
+                    <i class="fas fa-share-alt"></i>
+                  </button>
+                  <button
+                    class="doc-action-btn delete-btn"
+                    onclick="
+                      event.stopPropagation();
+                      Scan.removeDoc(2);
+                    "
+                    title="Delete"
+                  >
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Circle Check Sheets -->
+              <div
+                class="doc-upload-item"
+                id="doc-3-item"
+                onclick="Scan.handleDocItemClick(3)"
+              >
+                <input
+                  type="file"
+                  id="file-doc-3"
+                  class="hidden"
+                  accept="image/*,application/pdf"
+                  onchange="Scan.handleDocSelect(event, 3)"
+                />
+                <i
+                  class="fas fa-clipboard-check text-gray-400"
+                  id="doc-3-icon"
+                ></i>
+                <span class="doc-label text-gray-600 dark:text-gray-300"
+                  >Circle Check<br />Sheets</span
+                >
+                <span class="doc-status" id="doc-3-status">Add</span>
+                <img id="doc-3-preview" class="doc-preview-thumb hidden" />
+
+                <div
+                  class="doc-actions-bar"
+                  id="doc-3-actions"
+                  style="display: none"
+                >
+                  <button
+                    class="doc-action-btn view-btn"
+                    onclick="
+                      event.stopPropagation();
+                      Scan.viewDoc(3);
+                    "
+                    title="View"
+                  >
+                    <i class="fas fa-eye"></i>
+                  </button>
+                  <button
+                    class="doc-action-btn share-btn"
+                    onclick="
+                      event.stopPropagation();
+                      Scan.shareDoc(3);
+                    "
+                    title="Share"
+                  >
+                    <i class="fas fa-share-alt"></i>
+                  </button>
+                  <button
+                    class="doc-action-btn delete-btn"
+                    onclick="
+                      event.stopPropagation();
+                      Scan.removeDoc(3);
+                    "
+                    title="Delete"
+                  >
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error Display -->
+          <div
+            id="ocr-error"
+            class="hidden bg-red-50 dark:bg-red-900/20 rounded-2xl p-4 border border-red-200 dark:border-red-800"
+          >
+            <div class="flex items-center gap-3">
+              <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+              <div class="flex-1">
+                <p class="text-sm font-bold text-red-800 dark:text-red-300">
+                  Extraction Failed
+                </p>
+                <p
+                  class="text-xs text-red-600 dark:text-red-400"
+                  id="error-message"
+                >
+                  Please try again or enter manually
+                </p>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <button
+                onclick="Scan.toggleDebugInfo()"
+                class="text-xs text-red-600 underline mb-2"
+              >
+                <i class="fas fa-bug mr-1"></i>Show Debug Info
+              </button>
+              <div id="ocr-debug-info" class="ocr-debug-info hidden"></div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 mt-3">
+              <button
+                onclick="Scan.retryOCR()"
+                class="py-2 bg-red-100 dark:bg-red-900/30 text-red-700 rounded-lg text-sm font-medium"
+              >
+                <i class="fas fa-redo mr-1"></i>Retry
+              </button>
+              <button
+                onclick="Scan.showManualEntryFallback()"
+                class="py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 rounded-lg text-sm font-medium manual-entry-btn text-white"
+              >
+                <i class="fas fa-edit mr-1"></i>Manual Entry
+              </button>
+            </div>
+          </div>
+
+          <!-- OCR Progress -->
+          <div
+            id="ocr-progress"
+            class="hidden bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                id="ocr-status-text"
+                >Initializing...</span
+              >
+              <span class="text-sm text-primary" id="ocr-percentage">0%</span>
+            </div>
+            <div
+              class="w-full bg-gray-200 dark:bg-dark-surface rounded-full h-2 overflow-hidden"
+            >
+              <div
+                id="ocr-progress-bar"
+                class="bg-primary h-2 rounded-full transition-all duration-300 progress-bar-animated"
+                style="width: 0%"
+              ></div>
+            </div>
+            <div class="flex items-center gap-2 mt-2 text-xs text-gray-500">
+              <i class="fas fa-circle-notch fa-spin" id="ocr-spinner"></i>
+              <span id="ocr-stage">Preparing image...</span>
+            </div>
+          </div>
+
+          <!-- Auto-Detection Results -->
+          <div id="auto-results" class="hidden space-y-4">
+            <!-- Detection Summary -->
+            <div
+              class="bg-green-50 dark:bg-green-900/20 rounded-2xl p-4 border border-green-200 dark:border-green-800"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-bold text-green-800 dark:text-green-300">
+                  <i class="fas fa-check-circle mr-2"></i>Detection Complete
+                </h3>
+                <span
+                  class="text-xs bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 px-2 py-1 rounded-full"
+                  id="confidence-badge"
+                  >High Confidence</span
+                >
+              </div>
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span class="text-gray-500 dark:text-gray-400"
+                    >Week Ending:</span
+                  >
+                  <span
+                    class="font-bold text-gray-900 dark:text-white ml-1"
+                    id="result-week-ending"
+                    >14 Feb 2026</span
+                  >
+                </div>
+                <div>
+                  <span class="text-gray-500 dark:text-gray-400"
+                    >Working Days:</span
+                  >
+                  <span
+                    class="font-bold text-gray-900 dark:text-white ml-1"
+                    id="result-working-days"
+                    >3 days</span
+                  >
+                </div>
+                <div>
+                  <span class="text-gray-500 dark:text-gray-400">Shifts:</span>
+                  <span
+                    class="font-bold text-gray-900 dark:text-white ml-1"
+                    id="result-total-shifts"
+                    >6 shifts</span
+                  >
+                </div>
+                <div>
+                  <span class="text-gray-500 dark:text-gray-400"
+                    >Total Hours:</span
+                  >
+                  <span
+                    class="font-bold text-gray-900 dark:text-white ml-1"
+                    id="result-total-hours"
+                    >~38h</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Visual Grid -->
+            <div
+              class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+            >
+              <h3 class="font-bold text-gray-900 dark:text-white mb-3 text-sm">
+                Detected Schedule
+              </h3>
+              <div class="extraction-grid relative" id="detection-grid"></div>
+              <div class="flex gap-4 mt-3 text-xs justify-center">
+                <div class="flex items-center gap-1">
+                  <div class="w-3 h-3 bg-green-400 rounded"></div>
+                  <span>ON Time</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <div class="w-3 h-3 bg-red-400 rounded"></div>
+                  <span>OFF Time</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <div class="w-3 h-3 bg-blue-400 rounded"></div>
+                  <span>Both</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Time Correction Table -->
+            <div
+              class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+            >
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-gray-900 dark:text-white text-sm">
+                  Review & Correct Times
+                </h3>
+                <button
+                  onclick="Scan.resetToAuto()"
+                  class="text-xs text-primary hover:underline"
+                >
+                  Reset to Auto
+                </button>
+              </div>
+              <div id="correction-table" class="space-y-2"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3">
+              <button
+                onclick="Scan.reprocessImage()"
+                class="flex-1 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-50 dark:hover:bg-dark-surface transition-colors"
+              >
+                <i class="fas fa-redo mr-2"></i>Re-scan
+              </button>
+              <button
+                onclick="Scan.confirmAndSave()"
+                class="flex-1 py-3 bg-primary text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg shadow-blue-500/30 transition-colors"
+              >
+                <i class="fas fa-save mr-2"></i>Save All
+              </button>
+            </div>
+          </div>
+
+          <button
+            onclick="Scan.startOCR()"
+            id="scan-btn"
+            class="w-full bg-primary hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/30 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+          >
+            <i class="fas fa-magic mr-2"></i>Auto-Extract Times
+          </button>
+        </div>
+
+        <!-- VOR Scan View -->
+        <div id="vor-view" class="view-section hidden fade-in space-y-4">
+          <div class="text-center mb-4">
+            <h2
+              class="text-xl font-bold text-gray-900 dark:text-white flex items-center justify-center gap-2"
+            >
+              <i class="fas fa-exclamation-triangle text-orange-500"></i>
+              VOR Defect Report
+            </h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              Vehicle Off Road - Report defects
+            </p>
+          </div>
+
+          <!-- API Key Warning -->
+          <div
+            id="vor-api-key-warning"
+            class="hidden bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-4 border border-amber-200 dark:border-amber-800"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center"
+              >
+                <i class="fas fa-key text-amber-600"></i>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-bold text-amber-800 dark:text-amber-300">
+                  Gemini API Key Required
+                </p>
+                <p class="text-xs text-amber-700 dark:text-amber-400">
+                  Add your API key in Settings to enable AI scanning
+                </p>
+              </div>
+              <button
+                onclick="Settings.showGeminiKeyModal()"
+                class="px-3 py-1 bg-amber-600 text-white rounded-lg text-xs font-medium"
+              >
+                Add Key
+              </button>
+            </div>
+          </div>
+
+          <!-- Date -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Date of Defect
+              <span
+                id="vor-auto-detected-badge"
+                class="hidden ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full"
+              >
+                <i class="fas fa-robot mr-1"></i>Auto-detected
+              </span>
+            </label>
+            <input
+              type="date"
+              id="vor-date-select"
+              class="w-full p-3 bg-gray-100 dark:bg-dark-surface rounded-xl border-2 border-transparent focus:border-orange-500 outline-none text-gray-900 dark:text-white"
+            />
+          </div>
+
+          <!-- Defect Number -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Defect Number
+              <span
+                id="vor-defect-number-badge"
+                class="hidden ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full"
+              >
+                <i class="fas fa-robot mr-1"></i>Auto-detected
+              </span>
+            </label>
+            <input
+              type="text"
+              id="vor-defect-number"
+              placeholder="e.g., 092018"
+              class="w-full p-3 bg-gray-100 dark:bg-dark-surface rounded-xl border-2 border-transparent focus:border-orange-500 outline-none font-mono text-lg text-gray-900 dark:text-white"
+            />
+          </div>
+
+          <!-- Reg/Trailer Number -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Reg/Trailer Number
+              <span
+                id="vor-reg-badge"
+                class="hidden ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full"
+              >
+                <i class="fas fa-robot mr-1"></i>Auto-detected
+              </span>
+            </label>
+            <input
+              type="text"
+              id="vor-reg-number"
+              placeholder="e.g., WU69 XDY"
+              class="w-full p-3 bg-gray-100 dark:bg-dark-surface rounded-xl border-2 border-transparent focus:border-orange-500 outline-none font-mono text-lg uppercase text-gray-900 dark:text-white"
+            />
+          </div>
+
+          <!-- Time -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Time
+              <span
+                id="vor-time-badge"
+                class="hidden ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full"
+              >
+                <i class="fas fa-robot mr-1"></i>Auto-detected
+              </span>
+            </label>
+            <input
+              type="time"
+              id="vor-time"
+              class="w-full p-3 bg-gray-100 dark:bg-dark-surface rounded-xl border-2 border-transparent focus:border-orange-500 outline-none text-gray-900 dark:text-white"
+            />
+          </div>
+
+          <!-- Nature of Defect -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
+              Nature of Defect
+              <span
+                id="vor-nature-badge"
+                class="hidden ml-2 text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full"
+              >
+                <i class="fas fa-robot mr-1"></i>Auto-detected
+              </span>
+            </label>
+            <textarea
+              id="vor-nature"
+              rows="3"
+              placeholder="Describe the defect..."
+              class="w-full p-3 bg-gray-100 dark:bg-dark-surface rounded-xl border-2 border-transparent focus:border-orange-500 outline-none resize-none text-gray-900 dark:text-white"
+            ></textarea>
+          </div>
+
+          <!-- Main VOR Photo (Required) -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <h3
+                class="font-medium text-gray-900 dark:text-white flex items-center gap-2"
+              >
+                <i class="fas fa-exclamation-triangle text-orange-500"></i>
+                Defect Photo
+                <span
+                  class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold"
+                  >REQUIRED</span
+                >
+              </h3>
+              <span
+                class="text-xs text-red-500 font-medium"
+                id="vor-photo-status"
+                >Required</span
+              >
+            </div>
+            <div
+              class="upload-zone vor-zone rounded-xl p-6 text-center cursor-pointer relative overflow-hidden bg-gray-50 dark:bg-dark-surface image-preview-container"
+              id="vor-upload-zone"
+              onclick="document.getElementById('vor-file-main').click()"
+              ondrop="VOR.handleDrop(event)"
+              ondragover="VOR.handleDragOver(event)"
+              ondragleave="VOR.handleDragLeave(event)"
+            >
+              <input
+                type="file"
+                id="vor-file-main"
+                class="hidden"
+                accept="image/*"
+                capture="environment"
+                onchange="VOR.handleFileSelect(event)"
+              />
+              <div id="vor-upload-default">
+                <i class="fas fa-camera text-3xl text-orange-400 mb-2"></i>
+                <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                  Tap to take defect photo
+                </p>
+                <p class="text-xs text-gray-400 mt-1">
+                  This is required for processing
+                </p>
+              </div>
+              <img
+                id="vor-preview-main"
+                class="hidden w-full h-48 object-cover rounded-lg mx-auto"
+              />
+              <div
+                id="vor-processing-indicator"
+                class="image-processing-overlay hidden"
+              >
+                <div class="text-center">
+                  <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                  <p>Processing...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Additional Photo (Optional) -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <h3
+                class="font-medium text-gray-900 dark:text-white flex items-center gap-2"
+              >
+                <i class="fas fa-image text-gray-400"></i>
+                Additional Photo
+                <span
+                  class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-medium"
+                  >OPTIONAL</span
+                >
+              </h3>
+              <span
+                class="text-xs text-gray-400 font-medium"
+                id="vor-additional-status"
+                >Optional</span
+              >
+            </div>
+            <div
+              class="upload-zone rounded-xl p-6 text-center cursor-pointer relative overflow-hidden bg-gray-50 dark:bg-dark-surface image-preview-container"
+              id="vor-additional-zone"
+              onclick="document.getElementById('vor-file-additional').click()"
+            >
+              <input
+                type="file"
+                id="vor-file-additional"
+                class="hidden"
+                accept="image/*"
+                capture="environment"
+                onchange="VOR.handleAdditionalSelect(event)"
+              />
+              <div id="vor-additional-default">
+                <i class="fas fa-plus-circle text-3xl text-gray-400 mb-2"></i>
+                <p class="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                  Tap to add optional photo
+                </p>
+              </div>
+              <img
+                id="vor-preview-additional"
+                class="hidden w-full h-48 object-cover rounded-lg mx-auto"
+              />
+            </div>
+          </div>
+
+          <!-- VOR OCR Error -->
+          <div
+            id="vor-ocr-error"
+            class="hidden bg-red-50 dark:bg-red-900/20 rounded-2xl p-4 border border-red-200 dark:border-red-800"
+          >
+            <div class="flex items-center gap-3">
+              <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+              <div class="flex-1">
+                <p class="text-sm font-bold text-red-800 dark:text-red-300">
+                  Extraction Failed
+                </p>
+                <p
+                  class="text-xs text-red-600 dark:text-red-400"
+                  id="vor-error-message"
+                >
+                  Please try again or enter manually
+                </p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-3">
+              <button
+                onclick="VOR.retryOCR()"
+                class="py-2 bg-red-100 dark:bg-red-900/30 text-red-700 rounded-lg text-sm font-medium"
+              >
+                <i class="fas fa-redo mr-1"></i>Retry Scan
+              </button>
+              <button
+                onclick="VOR.showManualEntry()"
+                class="py-2 bg-orange-100 dark:bg-orange-900/30 text-orange-700 rounded-lg text-sm font-medium"
+              >
+                <i class="fas fa-edit mr-1"></i>Manual Entry
+              </button>
+            </div>
+          </div>
+
+          <!-- VOR OCR Progress -->
+          <div
+            id="vor-ocr-progress"
+            class="hidden bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <span
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+                id="vor-ocr-status-text"
+                >Initializing...</span
+              >
+              <span class="text-sm text-orange-500" id="vor-ocr-percentage"
+                >0%</span
+              >
+            </div>
+            <div
+              class="w-full bg-gray-200 dark:bg-dark-surface rounded-full h-2 overflow-hidden"
+            >
+              <div
+                id="vor-ocr-progress-bar"
+                class="bg-orange-500 h-2 rounded-full transition-all duration-300 progress-bar-animated"
+                style="width: 0%"
+              ></div>
+            </div>
+            <div class="flex items-center gap-2 mt-2 text-xs text-gray-500">
+              <i class="fas fa-circle-notch fa-spin" id="vor-ocr-spinner"></i>
+              <span id="vor-ocr-stage">Preparing image...</span>
+            </div>
+          </div>
+
+          <!-- VOR Auto Results -->
+          <div id="vor-auto-results" class="hidden space-y-4">
+            <div
+              class="bg-orange-50 dark:bg-orange-900/20 rounded-2xl p-4 border border-orange-200 dark:border-orange-800"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="font-bold text-orange-800 dark:text-orange-300">
+                  <i class="fas fa-check-circle mr-2"></i>Defect Detected
+                </h3>
+                <span
+                  class="text-xs bg-orange-200 dark:bg-orange-800 text-orange-800 dark:text-orange-200 px-2 py-1 rounded-full"
+                  id="vor-confidence-badge"
+                  >High Confidence</span
+                >
+              </div>
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400"
+                    >Defect Number:</span
+                  >
+                  <span
+                    class="font-bold text-gray-900 dark:text-white font-mono"
+                    id="vor-result-defect-number"
+                    >--</span
+                  >
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">Date:</span>
+                  <span
+                    class="font-bold text-gray-900 dark:text-white"
+                    id="vor-result-date"
+                    >--</span
+                  >
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">Time:</span>
+                  <span
+                    class="font-bold text-gray-900 dark:text-white"
+                    id="vor-result-time"
+                    >--</span
+                  >
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400"
+                    >Reg/Trailer:</span
+                  >
+                  <span
+                    class="font-bold text-gray-900 dark:text-white font-mono"
+                    id="vor-result-reg"
+                    >--</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onclick="VOR.startOCR()"
+            id="vor-scan-btn"
+            class="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-500/30 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+          >
+            <i class="fas fa-exclamation-triangle mr-2"></i>Scan Defect Report
+          </button>
+
+          <button
+            onclick="VOR.saveReport()"
+            id="vor-save-btn"
+            class="hidden w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-500/30 transition-all transform active:scale-95 mt-4"
+          >
+            <i class="fas fa-save mr-2"></i>Save VOR Report
+          </button>
+        </div>
+
+        <!-- History View -->
+        <div id="history-view" class="view-section hidden fade-in">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+              All Records
+            </h2>
+            <button
+              onclick="History.showArchiveView()"
+              class="text-sm text-primary hover:underline"
+            >
+              <i class="fas fa-archive mr-1"></i>View Archive
+            </button>
+          </div>
+
+          <!-- Defect Number Search -->
+          <div class="defect-number-search rounded-2xl p-4 mb-4">
+            <label
+              class="block text-sm font-medium text-amber-800 dark:text-amber-300 mb-2"
+            >
+              <i class="fas fa-search mr-2"></i>Search Defect # or Reg/Trailer
+            </label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                id="defect-search-input"
+                placeholder="Enter defect number or reg..."
+                class="flex-1 p-3 bg-white dark:bg-dark-surface rounded-xl border-2 border-amber-300 dark:border-amber-700 focus:border-amber-500 outline-none font-mono text-gray-900 dark:text-white"
+              />
+              <button
+                onclick="History.searchDefectNumber()"
+                class="px-4 py-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors"
+              >
+                <i class="fas fa-search"></i>
+              </button>
+              <button
+                onclick="History.clearDefectSearch()"
+                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 transition-colors"
+              >
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <p class="text-xs text-amber-700 dark:text-amber-400 mt-2">
+              <i class="fas fa-info-circle mr-1"></i>Searches both defect
+              numbers and registration/trailer numbers
+            </p>
+          </div>
+
+          <div class="flex gap-2 mb-4 overflow-x-auto pb-2">
+            <button
+              onclick="History.filterHistory('all')"
+              class="filter-btn active px-4 py-2 rounded-full bg-primary text-white text-sm font-medium whitespace-nowrap"
+              data-filter="all"
+            >
+              All
+            </button>
+            <button
+              onclick="History.filterHistory('month')"
+              class="filter-btn px-4 py-2 rounded-full bg-gray-200 dark:bg-dark-surface text-gray-700 dark:text-gray-300 text-sm font-medium whitespace-nowrap"
+              data-filter="month"
+            >
+              This Month
+            </button>
+            <button
+              onclick="History.filterHistory('year')"
+              class="filter-btn px-4 py-2 rounded-full bg-gray-200 dark:bg-dark-surface text-gray-700 dark:text-gray-300 text-sm font-medium whitespace-nowrap"
+              data-filter="year"
+            >
+              This Year
+            </button>
+          </div>
+
+          <!-- Timesheets Section -->
+          <div class="mb-6">
+            <h3
+              class="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2"
+            >
+              <i class="fas fa-calendar-week text-primary"></i>
+              Timesheets
+            </h3>
+            <div id="history-list" class="space-y-3"></div>
+          </div>
+
+          <!-- VOR Reports Section -->
+          <div>
+            <h3
+              class="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2"
+            >
+              <i class="fas fa-exclamation-triangle text-orange-500"></i>
+              VOR Defect Reports
+            </h3>
+            <div id="vor-history-list" class="space-y-3"></div>
+          </div>
+        </div>
+
+        <!-- Archive View -->
+        <div id="archive-view" class="view-section hidden fade-in">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+              Archived Weeks
+            </h2>
+            <button
+              onclick="App.switchView('history')"
+              class="text-sm text-primary hover:underline"
+            >
+              <i class="fas fa-arrow-left mr-1"></i>Back to Active
+            </button>
+          </div>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Archived weeks are stored locally but hidden from main views to
+            improve performance.
+          </p>
+          <div id="archive-list" class="space-y-3"></div>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settings-view" class="view-section hidden fade-in space-y-4">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            Settings
+          </h2>
+
+          <!-- Biometric Authentication Settings -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">
+              <i class="fas fa-fingerprint text-biometric mr-2"></i>Biometric
+              Authentication
+            </h3>
+
+            <div class="space-y-3">
+              <div
+                class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-surface rounded-xl"
+              >
+                <div class="flex items-center gap-3">
+                  <div
+                    id="biometric-icon-status"
+                    class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center"
+                  >
+                    <i class="fas fa-fingerprint text-gray-500"></i>
+                  </div>
+                  <div>
+                    <p
+                      class="font-medium text-gray-900 dark:text-white text-sm"
+                      id="biometric-setting-title"
+                    >
+                      Face ID / Touch ID
+                    </p>
+                    <p
+                      class="text-xs text-gray-500"
+                      id="biometric-setting-status"
+                    >
+                      Checking availability...
+                    </p>
+                  </div>
+                </div>
+                <div
+                  class="toggle-switch"
+                  id="biometric-toggle"
+                  onclick="Settings.toggleBiometric()"
+                ></div>
+              </div>
+
+              <div
+                id="biometric-info-box"
+                class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 border border-purple-200 dark:border-purple-800 hidden"
+              >
+                <p class="text-xs text-purple-700 dark:text-purple-400">
+                  <i class="fas fa-info-circle mr-1"></i>
+                  <span id="biometric-info-text"
+                    >Enable to login with Face ID or Touch ID on this
+                    device.</span
+                  >
+                </p>
+              </div>
+
+              <button
+                onclick="Settings.setupBiometricNow()"
+                id="setup-biometric-btn"
+                class="w-full py-3 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-xl font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors hidden"
+              >
+                <i class="fas fa-fingerprint mr-2"></i>Set Up Face ID / Touch ID
+              </button>
+            </div>
+          </div>
+
+          <!-- Storage Info -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">
+              <i class="fas fa-database text-primary mr-2"></i>Storage Status
+            </h3>
+            <div class="space-y-3">
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600 dark:text-gray-400">Used Space</span>
+                <span
+                  class="font-bold text-gray-900 dark:text-white"
+                  id="storage-used"
+                  >0 MB</span
+                >
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600 dark:text-gray-400">Available</span>
+                <span
+                  class="font-bold text-gray-900 dark:text-white"
+                  id="storage-available"
+                  >Unknown</span
+                >
+              </div>
+              <div class="storage-bar">
+                <div
+                  class="storage-fill"
+                  id="settings-storage-bar"
+                  style="width: 0%"
+                ></div>
+              </div>
+              <button
+                onclick="DB.checkStorageQuota()"
+                class="w-full py-2 bg-gray-100 dark:bg-dark-surface rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-200 transition-colors"
+              >
+                <i class="fas fa-sync-alt mr-2"></i>Refresh Storage Info
+              </button>
+            </div>
+          </div>
+
+          <!-- Dashboard Widget Toggle -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">
+              <i class="fas fa-toggle-on text-primary mr-2"></i>Dashboard
+              Options
+            </h3>
+            <div
+              class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-surface rounded-xl"
+            >
+              <div>
+                <p class="font-medium text-gray-900 dark:text-white text-sm">
+                  Show Storage Widget
+                </p>
+                <p class="text-xs text-gray-500">
+                  Display storage usage on calendar page
+                </p>
+              </div>
+              <div
+                class="toggle-switch active"
+                id="storage-widget-toggle"
+                onclick="Settings.toggleStorageWidget()"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Gemini API Settings -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">
+              <i class="fas fa-brain text-primary mr-2"></i>AI OCR Engine
+            </h3>
+
+            <div class="space-y-3">
+              <div
+                class="flex items-center justify-between p-3 bg-gray-100 dark:bg-dark-surface rounded-xl"
+              >
+                <div>
+                  <p class="font-medium text-gray-900 dark:text-white">
+                    Gemini 2.0 Flash
+                  </p>
+                  <p class="text-xs text-gray-500">Latest stable model</p>
+                </div>
+                <span
+                  class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium"
+                  id="api-status-badge"
+                >
+                  Not Configured
+                </span>
+              </div>
+
+              <div
+                class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+              >
+                <p class="text-xs text-blue-700 dark:text-blue-400">
+                  <i class="fas fa-info-circle mr-1"></i>
+                  Get your free API key from
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    class="underline font-medium"
+                    >Google AI Studio</a
+                  >
+                </p>
+              </div>
+
+              <button
+                onclick="Settings.showGeminiKeyModal()"
+                class="w-full flex items-center justify-between p-3 bg-gray-100 dark:bg-dark-surface rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div class="text-left">
+                  <p
+                    class="font-medium text-gray-900 dark:text-white"
+                    id="api-key-btn-text"
+                  >
+                    Configure API Key
+                  </p>
+                  <p class="text-xs text-gray-500" id="api-key-status">
+                    Required for AI scanning
+                  </p>
+                </div>
+                <i class="fas fa-chevron-right text-gray-400"></i>
+              </button>
+            </div>
+          </div>
+
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">
+              Appearance
+            </h3>
+            <button
+              onclick="Settings.toggleTheme()"
+              class="w-full flex items-center justify-between p-3 bg-gray-100 dark:bg-dark-surface rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            >
+              <div class="flex items-center gap-3">
+                <i class="fas fa-sun text-yellow-500 dark:hidden"></i>
+                <i class="fas fa-moon text-blue-400 hidden dark:block"></i>
+                <span
+                  class="font-medium text-gray-900 dark:text-white"
+                  id="theme-label"
+                  >Dark Mode</span
+                >
+              </div>
+              <div
+                class="w-12 h-6 bg-gray-300 dark:bg-primary rounded-full relative transition-colors"
+              >
+                <div
+                  class="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 dark:left-6 transition-all shadow-sm"
+                ></div>
+              </div>
+            </button>
+          </div>
+
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">
+              <i class="fas fa-info-circle text-primary mr-2"></i>About
+            </h3>
+            <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+              <p>
+                <strong>Version:</strong>
+                <span id="settings-version">v5.3.0 (Biometric Edition)</span>
+              </p>
+              <p><strong>OCR Engine:</strong> Google Gemini 2.0 Flash AI</p>
+              <p><strong>Storage:</strong> IndexedDB (Local Device)</p>
+              <p class="text-xs">
+                Required timesheet OCR + 3 additional document uploads per week.
+              </p>
+              <p class="text-xs text-orange-600">
+                VOR Defect reporting with AI extraction.
+              </p>
+              <p class="text-xs text-purple-600">
+                Face ID / Touch ID biometric authentication.
+              </p>
+            </div>
+          </div>
+
+          <!-- Data Management -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">
+              <i class="fas fa-database text-primary mr-2"></i>Data Management
+            </h3>
+
+            <div class="space-y-2">
+              <button
+                onclick="History.showDeleteOptions('week')"
+                class="w-full flex items-center justify-between p-3 bg-gray-100 dark:bg-dark-surface rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
+              >
+                <div>
+                  <p class="font-medium text-gray-900 dark:text-white">
+                    Delete Specific Week
+                  </p>
+                  <p class="text-xs text-gray-500">Remove one week's data</p>
+                </div>
+                <i class="fas fa-chevron-right text-gray-400"></i>
+              </button>
+
+              <button
+                onclick="History.showDeleteOptions('month')"
+                class="w-full flex items-center justify-between p-3 bg-gray-100 dark:bg-dark-surface rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left"
+              >
+                <div>
+                  <p class="font-medium text-gray-900 dark:text-white">
+                    Delete Month
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    Remove all data for a month
+                  </p>
+                </div>
+                <i class="fas fa-chevron-right text-gray-400"></i>
+              </button>
+
+              <button
+                onclick="History.showDeleteVOROptions()"
+                class="w-full flex items-center justify-between p-3 bg-gray-100 dark:bg-dark-surface rounded-xl hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors text-left"
+              >
+                <div>
+                  <p class="font-medium text-gray-900 dark:text-white">
+                    Delete VOR Reports
+                  </p>
+                  <p class="text-xs text-gray-500">Manage defect reports</p>
+                </div>
+                <i class="fas fa-chevron-right text-gray-400"></i>
+              </button>
+
+              <button
+                onclick="History.manageArchives()"
+                class="w-full flex items-center justify-between p-3 bg-gray-100 dark:bg-dark-surface rounded-xl hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors text-left"
+              >
+                <div>
+                  <p class="font-medium text-gray-900 dark:text-white">
+                    Manage Archives
+                  </p>
+                  <p class="text-xs text-gray-500">
+                    View or restore archived weeks
+                  </p>
+                </div>
+                <i class="fas fa-chevron-right text-gray-400"></i>
+              </button>
+
+              <button
+                onclick="History.deleteAllData()"
+                class="w-full p-3 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-xl font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors mt-2"
+              >
+                <i class="fas fa-trash-alt mr-2"></i>Delete All Timesheet Data
+              </button>
+            </div>
+          </div>
+
+          <!-- Logout Button -->
+          <div
+            class="bg-white dark:bg-dark-card rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700"
+          >
+            <h3 class="font-semibold text-gray-900 dark:text-white mb-3">
+              <i class="fas fa-sign-out-alt text-primary mr-2"></i>Account
+            </h3>
+            <button
+              onclick="Auth.logout()"
+              class="w-full p-4 bg-gray-100 dark:bg-dark-surface hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+            >
+              <i class="fas fa-sign-out-alt"></i>
+              Log Out
+            </button>
+          </div>
+
+          <!-- Account Deletion -->
+          <div class="danger-zone rounded-2xl p-4">
+            <h3
+              class="font-semibold text-red-600 dark:text-red-400 mb-2 flex items-center gap-2"
+            >
+              <i class="fas fa-exclamation-triangle"></i> Danger Zone
+            </h3>
+            <p class="text-sm text-red-600/80 dark:text-red-400/80 mb-4">
+              This will permanently delete your account, all stored data, and
+              remove the app from this device.
+            </p>
+            <button
+              onclick="Settings.showRemoveAccountConfirm()"
+              class="w-full p-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all transform active:scale-95 shadow-lg shadow-red-500/30 flex items-center justify-center gap-2"
+            >
+              <i class="fas fa-user-slash"></i>
+              Delete Account & All Data
+            </button>
+          </div>
+        </div>
+      </main>
+
+      <!-- Bottom Navigation -->
+      <nav
+        class="fixed bottom-0 left-0 right-0 bg-white dark:bg-dark-card border-t border-gray-200 dark:border-gray-700 z-40"
+      >
+        <div class="flex justify-around items-center h-16 max-w-lg mx-auto">
+          <button
+            onclick="App.switchView('dashboard')"
+            class="nav-item flex flex-col items-center gap-1 text-gray-400 flex-1 h-full justify-center active"
+            data-view="dashboard"
+          >
+            <i class="fas fa-calendar-alt text-xl transition-transform"></i>
+            <span class="text-xs font-medium">Calendar</span>
+          </button>
+          <button
+            onclick="App.switchView('scan')"
+            class="nav-item flex flex-col items-center gap-1 text-gray-400 flex-1 h-full justify-center"
+            data-view="scan"
+          >
+            <div
+              class="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 -mt-6 border-4 border-gray-50 dark:border-dark"
+            >
+              <i class="fas fa-plus text-lg"></i>
+            </div>
+            <span class="text-xs font-medium">Scan</span>
+          </button>
+          <button
+            onclick="App.switchView('vor')"
+            class="nav-item flex flex-col items-center gap-1 text-gray-400 flex-1 h-full justify-center vor-nav-item"
+            data-view="vor"
+          >
+            <div
+              class="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-orange-500/30 -mt-6 border-4 border-gray-50 dark:border-dark"
+            >
+              <i class="fas fa-exclamation-triangle text-lg"></i>
+            </div>
+            <span class="text-xs font-medium">VOR</span>
+          </button>
+          <button
+            onclick="App.switchView('history')"
+            class="nav-item flex flex-col items-center gap-1 text-gray-400 flex-1 h-full justify-center"
+            data-view="history"
+          >
+            <i class="fas fa-list text-xl transition-transform"></i>
+            <span class="text-xs font-medium">History</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+
+    <!-- API Key Modal -->
+    <div
+      id="gemini-key-modal"
+      class="fixed inset-0 z-[100] bg-black/80 hidden flex items-center justify-center p-4"
+    >
+      <div class="bg-white dark:bg-dark-card rounded-2xl p-6 max-w-md w-full">
+        <div class="text-center mb-6">
+          <div
+            class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4"
+          >
+            <i class="fas fa-key text-2xl text-blue-600"></i>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+            Gemini API Key
+          </h3>
+          <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">
+            Get your free API key from
+            <a
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              class="text-primary underline"
+              >Google AI Studio</a
+            >
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <input
+              type="password"
+              id="gemini-api-key-input"
+              placeholder="Paste your API key here (starts with AIza...)"
+              class="w-full p-4 bg-gray-100 dark:bg-dark-surface rounded-xl border-2 border-transparent focus:border-primary outline-none text-sm font-mono text-gray-900 dark:text-white"
+            />
+          </div>
+
+          <div
+            class="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800"
+          >
+            <p class="text-xs text-yellow-700 dark:text-yellow-400">
+              <i class="fas fa-shield-alt mr-1"></i>
+              Your key is stored locally on your device and never sent to our
+              servers.
+            </p>
+          </div>
+
+          <button
+            onclick="Settings.saveGeminiKey()"
+            class="w-full bg-primary hover:bg-blue-600 text-white font-bold py-3 rounded-xl transition-colors"
+          >
+            Save API Key
+          </button>
+
+          <button
+            onclick="Settings.closeGeminiKeyModal()"
+            class="w-full text-gray-500 py-2 text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Biometric Setup Modal (for settings) -->
+    <div
+      id="biometric-setup-modal"
+      class="fixed inset-0 z-[100] bg-black/80 hidden flex items-center justify-center p-4"
+    >
+      <div class="bg-white dark:bg-dark-card rounded-2xl p-6 max-w-md w-full">
+        <div class="text-center mb-6">
+          <div
+            class="w-20 h-20 biometric-icon rounded-full flex items-center justify-center mx-auto mb-4 biometric-pulse"
+          >
+            <i class="fas fa-fingerprint text-3xl"></i>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+            Set Up Biometric Login
+          </h3>
+          <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">
+            Use Face ID, Touch ID, or fingerprint for faster, more secure login
+            on this device.
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div
+            class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800"
+          >
+            <div class="flex items-center gap-3 mb-2">
+              <i class="fas fa-shield-alt text-purple-600"></i>
+              <span class="font-medium text-purple-900 dark:text-purple-300"
+                >Secure & Private</span
+              >
+            </div>
+            <p class="text-xs text-purple-700 dark:text-purple-400">
+              Your biometric data never leaves this device. It's stored securely
+              in your device's hardware security module.
+            </p>
+          </div>
+
+          <div class="bg-gray-50 dark:bg-dark-surface rounded-lg p-4">
+            <p class="text-sm text-gray-700 dark:text-gray-300 mb-2">
+              You'll need to:
+            </p>
+            <ul class="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+              <li class="flex items-center gap-2">
+                <i class="fas fa-check text-green-500"></i> Verify with your PIN
+                first
+              </li>
+              <li class="flex items-center gap-2">
+                <i class="fas fa-check text-green-500"></i> Scan your biometric
+              </li>
+              <li class="flex items-center gap-2">
+                <i class="fas fa-check text-green-500"></i> Use it for future
+                logins
+              </li>
+            </ul>
+          </div>
+
+          <button
+            onclick="Auth.startBiometricRegistration()"
+            id="start-biometric-setup-btn"
+            class="w-full biometric-btn font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2"
+          >
+            <i class="fas fa-fingerprint"></i>
+            <span>Set Up Now</span>
+          </button>
+
+          <button
+            onclick="Settings.closeBiometricSetupModal()"
+            class="w-full text-gray-500 py-2 text-sm"
+          >
+            Maybe Later
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Screen Image Viewer -->
+    <div
+      id="fullscreen-viewer"
+      class="fullscreen-image-viewer hidden"
+      onclick="UI.handleViewerBackdropClick(event)"
+    >
+      <div class="viewer-header">
+        <button
+          class="close-btn"
+          onclick="UI.closeFullscreenViewer(event)"
+          type="button"
+        >
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="viewer-content" onclick="UI.handleViewerContentClick(event)">
+        <img id="viewer-image" src="" alt="Document" />
+      </div>
+      <div class="viewer-footer">
+        <div class="filename-container">
+          <div class="filename" id="viewer-filename">image.jpg</div>
+          <div class="doc-type-label" id="viewer-doc-type">Timesheet Front</div>
+        </div>
+        <button
+          class="share-btn-large"
+          onclick="UI.shareViewerDocument(event)"
+          type="button"
+        >
+          <i class="fas fa-share-alt"></i>
+          Share
+        </button>
+      </div>
+    </div>
+
+    <!-- Share Fallback Modal -->
+    <div
+      id="share-fallback-modal"
+      class="share-fallback-modal hidden"
+      onclick="UI.closeShareFallback(event)"
+    >
+      <div class="share-fallback-content" onclick="event.stopPropagation()">
+        <div
+          class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <i class="fas fa-share-alt text-2xl text-blue-600"></i>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">
+          Share Document
+        </h3>
+        <p
+          class="text-sm text-gray-500 dark:text-gray-400 mb-4"
+          id="share-fallback-text"
+        >
+          Your document is ready to share
+        </p>
+        <div class="space-y-2">
+          <button
+            onclick="UI.downloadCurrentDocument()"
+            class="w-full bg-primary text-white font-semibold py-3 rounded-xl"
+          >
+            <i class="fas fa-download mr-2"></i>Download File
+          </button>
+          <button
+            onclick="UI.closeShareFallback()"
+            class="w-full text-gray-500 py-2 text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div id="delete-modal" class="fixed inset-0 z-50 hidden">
+      <div
+        class="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onclick="History.closeDeleteModal()"
+      ></div>
+      <div
+        class="absolute bottom-0 left-0 right-0 md:inset-0 md:flex md:items-center md:justify-center p-4"
+      >
+        <div
+          class="bg-white dark:bg-dark-card w-full md:max-w-md md:rounded-2xl rounded-t-2xl shadow-2xl slide-up max-h-[80vh] overflow-y-auto"
+        >
+          <div
+            class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center"
+          >
+            <h3
+              class="text-lg font-bold text-gray-900 dark:text-white"
+              id="delete-modal-title"
+            >
+              Delete Data
+            </h3>
+            <button
+              onclick="History.closeDeleteModal()"
+              class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface"
+            >
+              <i class="fas fa-times text-gray-500"></i>
+            </button>
+          </div>
+          <div class="p-4" id="delete-options-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Remove Account Modal -->
+    <div
+      id="remove-account-modal"
+      class="fixed inset-0 z-[100] bg-black/90 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-dark-card rounded-2xl p-6 max-w-sm w-full text-center border-2 border-red-500"
+      >
+        <div
+          class="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4"
+        >
+          <i class="fas fa-exclamation-triangle text-3xl text-red-600"></i>
+        </div>
+        <h3 class="text-xl font-bold text-red-600 mb-2">Delete Account?</h3>
+        <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">
+          This will permanently delete all your data including biometric
+          credentials.
+        </p>
+        <button
+          onclick="Settings.executeRemoveAccount()"
+          class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl mb-2"
+        >
+          Yes, Delete Everything
+        </button>
+        <button
+          onclick="Settings.hideRemoveAccountModal()"
+          class="w-full text-gray-500 py-2 text-sm"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+
+    <!-- Final Removal Screen -->
+    <div
+      id="final-removal-screen"
+      class="fixed inset-0 z-[100] bg-red-600 hidden flex flex-col items-center justify-center p-6 text-white"
+    >
+      <div class="text-center">
+        <i
+          class="fas fa-check-circle text-6xl mb-6 opacity-0"
+          id="removal-check"
+        ></i>
+        <h2 class="text-3xl font-bold mb-4 opacity-0" id="removal-title">
+          Account Deleted
+        </h2>
+        <p class="text-white/80 mb-8 opacity-0" id="removal-text">
+          All data has been permanently removed.
+        </p>
+      </div>
+    </div>
+
+    <!-- Week Modal -->
+    <div id="week-modal" class="fixed inset-0 z-50 hidden">
+      <div
+        class="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onclick="History.closeWeekModal()"
+      ></div>
+      <div
+        class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center p-4"
+      >
+        <div
+          class="bg-white dark:bg-dark-card w-full md:max-w-2xl md:rounded-2xl rounded-t-2xl shadow-2xl slide-up max-h-[90vh] overflow-y-auto"
+        >
+          <div
+            class="sticky top-0 bg-white dark:bg-dark-card border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center z-10"
+          >
+            <h3
+              class="text-lg font-bold text-gray-900 dark:text-white"
+              id="week-modal-title"
+            >
+              Week Details
+            </h3>
+            <button
+              onclick="History.closeWeekModal()"
+              class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface"
+            >
+              <i class="fas fa-times text-gray-500"></i>
+            </button>
+          </div>
+          <div class="p-4 space-y-4" id="week-modal-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VOR Detail Modal -->
+    <div id="vor-detail-modal" class="fixed inset-0 z-50 hidden">
+      <div
+        class="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onclick="History.closeVORDetailModal()"
+      ></div>
+      <div
+        class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center p-4"
+      >
+        <div
+          class="bg-white dark:bg-dark-card w-full md:max-w-2xl md:rounded-2xl rounded-t-2xl shadow-2xl slide-up max-h-[90vh] overflow-y-auto"
+        >
+          <div
+            class="sticky top-0 bg-white dark:bg-dark-card border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center z-10"
+          >
+            <h3
+              class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2"
+            >
+              <i class="fas fa-exclamation-triangle text-orange-500"></i>
+              VOR Defect Report
+            </h3>
+            <button
+              onclick="History.closeVORDetailModal()"
+              class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-dark-surface"
+            >
+              <i class="fas fa-times text-gray-500"></i>
+            </button>
+          </div>
+          <div class="p-4 space-y-4" id="vor-detail-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div
+      id="toast"
+      class="fixed top-20 left-4 right-4 md:left-auto md:right-4 md:w-auto bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-xl shadow-lg transform -translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-3 max-w-md"
+    >
+      <i
+        id="toast-icon"
+        class="fas fa-check-circle text-green-400 dark:text-green-600"
+      ></i>
+      <span id="toast-message" class="font-medium text-sm"
+        >Operation successful</span
+      >
+    </div>
+
+    <!-- Scripts - Load in dependency order -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/db.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/calendar.js"></script>
+    <script src="js/scan.js"></script>
+    <script src="js/vor.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
