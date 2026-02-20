@@ -2,6 +2,8 @@
 
 A professional PWA (Progressive Web App) for truck drivers to track timesheets, manage documents, and report vehicle defects with AI-powered OCR.
 
+# [🚀 CLICK HERE TO OPEN APP](https://twmiddleton21-lgtm.github.io/driver-timesheet-pro/)
+
 ![Version](https://img.shields.io/badge/version-5.3.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![PWA](https://img.shields.io/badge/PWA-Ready-purple)
