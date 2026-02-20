@@ -2309,21 +2309,9 @@
     <script src="js/settings.js"></script>
     <script src="js/app.js"></script>
 
-    <!-- Initialization Error Handler -->
+    <!-- Initialization with retry logic -->
     <script>
-      window.addEventListener("error", function (e) {
-        console.error("Global error:", e.error);
-        // Check if it's a dependency error
-        if (e.message && e.message.includes("Auth is not defined")) {
-          alert(
-            "Error: Auth module failed to load. Please check that all JavaScript files are present in the js/ folder.",
-          );
-        }
-      });
-
-      // Verify all modules loaded
-      document.addEventListener("DOMContentLoaded", function () {
-        console.log("DOM loaded, checking modules...");
+      (function checkModules() {
         const requiredModules = ["CONFIG", "Utils", "DB", "UI", "Auth", "App"];
         const missing = [];
 
@@ -2334,26 +2322,29 @@
         });
 
         if (missing.length > 0) {
-          console.error("Missing modules:", missing);
-          // Show error in UI if possible
-          const authScreen = document.getElementById("auth-screen");
-          if (authScreen) {
-            authScreen.innerHTML = `
-              <div class="p-6 text-center">
-                <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
-                <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Loading Error</h2>
-                <p class="text-gray-600 dark:text-gray-400 mb-4">
-                  Failed to load required modules: ${missing.join(", ")}
-                </p>
-                <p class="text-sm text-gray-500">
-                  Please ensure all JavaScript files are in the js/ folder and refresh the page.
-                </p>
-              </div>
-            `;
-          }
+          console.warn("Some modules not loaded yet:", missing);
+          // Don't show error immediately - scripts might still be loading
+          // Retry after a short delay
+          setTimeout(checkModules, 500);
         } else {
           console.log("✅ All modules loaded successfully");
+          // Initialize the app
+          if (typeof App !== "undefined" && App.init) {
+            App.init();
+          }
         }
+      })();
+
+      // Global error handler
+      window.addEventListener("error", function (e) {
+        console.error(
+          "Script error:",
+          e.message,
+          "at",
+          e.filename,
+          ":",
+          e.lineno,
+        );
       });
     </script>
   </body>
