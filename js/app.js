@@ -69,7 +69,11 @@ const App = {
     const mainApp = document.getElementById("main-app");
 
     if (authScreen) authScreen.classList.add("hidden");
-    if (mainApp) mainApp.classList.remove("hidden");
+    if (mainApp) {
+      mainApp.classList.remove("hidden");
+      // Ensure main app is clickable
+      mainApp.style.pointerEvents = "auto";
+    }
 
     // Initialize settings with current user - use initSettings from settings.js if available
     if (typeof initSettings === "function") {
@@ -108,12 +112,41 @@ const App = {
       Settings.updateStorageWidgetVisibility();
     }
 
-    // Show welcome toast
-    const deviceInfo = Utils.getDeviceInfo();
-    const welcomeMsg = fromBiometric
-      ? `Welcome, ${user.username} (${deviceInfo.platform})`
-      : `Welcome, ${user.username}`;
-    UI.showToast(welcomeMsg);
+    // Ensure all nav items are clickable
+    this.fixNavButtons();
+
+    // Show welcome toast AFTER a small delay to ensure UI is ready
+    setTimeout(() => {
+      const deviceInfo = Utils.getDeviceInfo();
+      const welcomeMsg = fromBiometric
+        ? `Welcome, ${user.username} (${deviceInfo.platform})`
+        : `Welcome, ${user.username}`;
+      UI.showToast(welcomeMsg);
+    }, 100);
+  },
+
+  /**
+   * Fix nav buttons to ensure they're clickable
+   */
+  fixNavButtons() {
+    document.querySelectorAll(".nav-item").forEach((btn) => {
+      btn.style.pointerEvents = "auto";
+      btn.style.position = "relative";
+      btn.style.zIndex = "100";
+    });
+
+    // Ensure settings view is properly set up
+    const settingsView = document.getElementById("settings-view");
+    if (settingsView) {
+      settingsView.style.pointerEvents = "auto";
+    }
+
+    // Remove any blocking overlays
+    document.querySelectorAll(".fixed.inset-0").forEach((el) => {
+      if (!el.id || el.id === "") {
+        el.remove();
+      }
+    });
   },
 
   /**

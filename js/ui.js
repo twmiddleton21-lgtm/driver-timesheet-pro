@@ -13,6 +13,16 @@ const UI = {
    */
   init() {
     console.log("🎨 UI initialized");
+    // Ensure toast starts completely hidden and non-interactive
+    const toast = document.getElementById("toast");
+    if (toast) {
+      toast.classList.add(
+        "-translate-y-20",
+        "opacity-0",
+        "pointer-events-none",
+      );
+      toast.style.pointerEvents = "none";
+    }
     return Promise.resolve();
   },
 
@@ -52,13 +62,23 @@ const UI = {
     iconEl.className = `fas ${icons[type] || icons.success} ${colors[type] || colors.success} dark:${colors[type] || colors.success}`;
     msgEl.textContent = message;
 
-    // Show toast
-    toast.classList.remove("-translate-y-20", "opacity-0");
+    // Show toast - enable pointer events when visible
+    toast.classList.remove(
+      "-translate-y-20",
+      "opacity-0",
+      "pointer-events-none",
+    );
+    toast.style.pointerEvents = "auto";
 
     // Hide after delay
     clearTimeout(this._toastTimeout);
     this._toastTimeout = setTimeout(() => {
-      toast.classList.add("-translate-y-20", "opacity-0");
+      toast.classList.add(
+        "-translate-y-20",
+        "opacity-0",
+        "pointer-events-none",
+      );
+      toast.style.pointerEvents = "none";
     }, 3000);
   },
 
