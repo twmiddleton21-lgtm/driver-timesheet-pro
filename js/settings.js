@@ -13,7 +13,7 @@ let currentSettingsUser = null;
  */
 function initSettings(user) {
   console.log("⚙️ Settings initialized");
-  currentSettingsUser = user;
+  currentSettingsUser = user || Auth.getCurrentUser();
   updateApiKeyStatus();
   checkStorageQuota();
   updateStorageWidgetToggle();
@@ -182,6 +182,10 @@ function updateStorageWidgetVisibility() {
  * Update biometric settings UI
  */
 async function updateBiometricSettingsUI() {
+  if (!currentSettingsUser) {
+    currentSettingsUser = Auth.getCurrentUser();
+  }
+
   if (!currentSettingsUser) return;
 
   const title = document.getElementById("biometric-setting-title");
@@ -269,6 +273,10 @@ async function updateBiometricSettingsUI() {
  * Toggle biometric authentication
  */
 async function toggleBiometricAuth() {
+  if (!currentSettingsUser) {
+    currentSettingsUser = Auth.getCurrentUser();
+  }
+
   if (!currentSettingsUser) return;
 
   const toggle = document.getElementById("biometric-toggle");
@@ -283,11 +291,16 @@ async function toggleBiometricAuth() {
         "false",
       );
       if (toggle) toggle.classList.remove("active");
-      updateBiometricSettingsUI();
+      await updateBiometricSettingsUI();
       showToast("Biometric login disabled");
     }
   } else {
     // Enable biometric - show setup modal
+    // Ensure we're not already showing a modal
+    const existingModal = document.getElementById("biometric-setup-modal");
+    if (existingModal && !existingModal.classList.contains("hidden")) {
+      return; // Already showing
+    }
     showBiometricSetupModal();
   }
 }
@@ -297,7 +310,11 @@ async function toggleBiometricAuth() {
  */
 function showBiometricSetupModal() {
   const modal = document.getElementById("biometric-setup-modal");
-  if (modal) modal.classList.remove("hidden");
+  if (modal) {
+    modal.classList.remove("hidden");
+    // Ensure the modal doesn't block clicks
+    modal.style.pointerEvents = "auto";
+  }
 }
 
 /**
@@ -305,7 +322,18 @@ function showBiometricSetupModal() {
  */
 function closeBiometricSetupModal() {
   const modal = document.getElementById("biometric-setup-modal");
-  if (modal) modal.classList.add("hidden");
+  if (modal) {
+    modal.classList.add("hidden");
+    // Ensure pointer events are reset
+    modal.style.pointerEvents = "";
+  }
+
+  // Also ensure body scroll is restored and no backdrop remains
+  document.body.style.overflow = "";
+
+  // Remove any lingering modal backdrops
+  const backdrops = document.querySelectorAll(".modal-backdrop");
+  backdrops.forEach((backdrop) => backdrop.remove());
 }
 
 /**
@@ -314,6 +342,16 @@ function closeBiometricSetupModal() {
 async function startBiometricRegistration() {
   const btn = document.getElementById("start-biometric-setup-btn");
   if (!btn) return;
+
+  // Ensure we have the current user
+  if (!currentSettingsUser) {
+    currentSettingsUser = Auth.getCurrentUser();
+  }
+
+  if (!currentSettingsUser) {
+    showToast("No user logged in", "error");
+    return;
+  }
 
   const originalText = btn.innerHTML;
   btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Setting up...';
@@ -325,12 +363,14 @@ async function startBiometricRegistration() {
     localStorage.setItem(`biometric_${currentSettingsUser.username}`, "true");
     localStorage.setItem("lastLoggedInUser", currentSettingsUser.username);
 
+    // Close modal properly
     closeBiometricSetupModal();
 
+    // Update UI
     const toggle = document.getElementById("biometric-toggle");
     if (toggle) toggle.classList.add("active");
 
-    updateBiometricSettingsUI();
+    await updateBiometricSettingsUI();
     showToast(`${getDeviceInfo().platform} enabled successfully!`);
   } catch (error) {
     console.error("Setup error:", error);
@@ -344,6 +384,10 @@ async function startBiometricRegistration() {
  * Setup biometric from settings page
  */
 function setupBiometricNow() {
+  // Ensure we have current user before showing modal
+  if (!currentSettingsUser) {
+    currentSettingsUser = Auth.getCurrentUser();
+  }
   showBiometricSetupModal();
 }
 
@@ -417,7 +461,11 @@ function showDeleteOptions(type) {
 
   if (!modal || !title || !content) return;
 
-  const timesheets = DB.getTimesheets(currentSettingsUser.username);
+  if (!currentSettingsUser) {
+    currentSettingsUser = Auth.getCurrentUser();
+  }
+
+  const timesheets = DB.timesheets.getAll(currentSettingsUser.username);
 
   if (type === "week") {
     title.textContent = "Delete Specific Week";
@@ -495,11 +543,13 @@ async function showDeleteVOROptions() {
 
   if (!modal || !title || !content) return;
 
+  if (!currentSettingsUser) {
+    currentSettingsUser = Auth.getCurrentUser();
+  }
+
   title.textContent = "Delete VOR Reports";
 
-  const vorReports = await DB.getVORReportsForUser(
-    currentSettingsUser.username,
-  );
+  const vorReports = await DB.getVORReports(currentSettingsUser.username);
 
   if (vorReports.length === 0) {
     content.innerHTML =
@@ -537,7 +587,7 @@ function closeDeleteModal() {
 async function deleteAllData() {
   if (
     !confirm(
-      "DELETE ALL TIMESHEET DATA?\\n\\nThis will remove every timesheet and document. This cannot be undone.",
+      "DELETE ALL TIMESHEET DATA?\n\nThis will remove every timesheet and document. This cannot be undone.",
     )
   ) {
     return;
@@ -547,13 +597,19 @@ async function deleteAllData() {
     return;
   }
 
-  await clearAllStores();
-  DB.saveTimesheets(currentSettingsUser.username, []);
+  if (!currentSettingsUser) {
+    currentSettingsUser = Auth.getCurrentUser();
+  }
+
+  await DB.clearAll();
+  DB.timesheets.save(currentSettingsUser.username, []);
 
   // Refresh views
-  if (typeof renderCalendar === "function") renderCalendar();
-  if (typeof updateStats === "function") updateStats();
-  if (typeof renderRecent === "function") renderRecent();
+  if (typeof Calendar !== "undefined") {
+    Calendar.render();
+    Calendar.updateStats();
+    Calendar.renderRecent();
+  }
 
   const preview = document.getElementById("week-preview");
   if (preview) preview.classList.add("hidden");
@@ -588,13 +644,13 @@ async function executeRemoveAccount() {
   if (removalScreen) removalScreen.classList.remove("hidden");
 
   try {
-    await clearAllStores();
+    await DB.clearAll();
   } catch (e) {
     console.log("Store clearing failed:", e);
   }
 
   if (currentSettingsUser) {
-    DB.deleteUser(currentSettingsUser.username);
+    DB.users.delete(currentSettingsUser.username);
   }
 
   // Animate removal
@@ -618,6 +674,13 @@ async function executeRemoveAccount() {
       console.log("Cache clearing failed:", e);
     }
   }
+
+  // Clear all app data after delay
+  setTimeout(() => {
+    localStorage.clear();
+    indexedDB.deleteDatabase(CONFIG.DB_NAME);
+    location.reload();
+  }, 3000);
 }
 
 /**
@@ -661,3 +724,8 @@ window.executeRemoveAccount = executeRemoveAccount;
 window.manageArchives = manageArchives;
 window.toggleTheme = toggleTheme;
 window.updateThemeLabel = updateThemeLabel;
+window.checkBiometricAvailability = checkBiometricAvailability;
+window.getBiometricCredentials = getBiometricCredentials;
+window.deleteBiometricCredential = deleteBiometricCredential;
+window.registerBiometric = registerBiometric;
+window.getDeviceInfo = getDeviceInfo;

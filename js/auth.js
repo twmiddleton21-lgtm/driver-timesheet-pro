@@ -834,6 +834,13 @@ const Auth = {
   // ==========================================
 
   showBiometricSetupPrompt() {
+    // Don't show auth prompt if we're in settings view (settings has its own)
+    const settingsView = document.getElementById("settings-view");
+    if (settingsView && !settingsView.classList.contains("hidden")) {
+      console.log("In settings view, skipping auth biometric prompt");
+      return;
+    }
+
     const prompt = document.getElementById("biometric-setup-prompt");
     const icon = prompt?.querySelector(".biometric-prompt-icon i");
     const title = prompt?.querySelector(".biometric-prompt-title");
@@ -868,7 +875,11 @@ const Auth = {
 
   hideBiometricSetupPrompt() {
     const prompt = document.getElementById("biometric-setup-prompt");
-    if (prompt) prompt.classList.add("hidden");
+    if (prompt) {
+      prompt.classList.add("hidden");
+      prompt.style.pointerEvents = "";
+    }
+    document.body.style.overflow = "";
   },
 
   async enableFromPrompt() {
@@ -941,30 +952,24 @@ const Auth = {
       localStorage.setItem(`biometric_${this.currentUser.username}`, "true");
       this.biometricEnabled = true;
 
-      if (
-        typeof Settings !== "undefined" &&
-        Settings.closeBiometricSetupModal
-      ) {
-        Settings.closeBiometricSetupModal();
+      // Close modal using direct DOM access
+      const modal = document.getElementById("biometric-setup-modal");
+      if (modal) {
+        modal.classList.add("hidden");
+        modal.style.pointerEvents = "";
       }
-      if (
-        typeof Settings !== "undefined" &&
-        Settings.updateBiometricSettingsUI
-      ) {
-        Settings.updateBiometricSettingsUI();
+      document.body.style.overflow = "";
+
+      // Update UI using global function
+      if (typeof updateBiometricSettingsUI === "function") {
+        await updateBiometricSettingsUI();
       }
-      if (typeof UI !== "undefined") {
-        const deviceInfo =
-          typeof Utils !== "undefined" && Utils.getDeviceInfo
-            ? Utils.getDeviceInfo()
-            : { platform: "Biometric" };
-        UI.showToast(`${deviceInfo.platform} enabled successfully!`);
-      }
+
+      const deviceInfo = Utils.getDeviceInfo();
+      UI.showToast(`${deviceInfo.platform} enabled successfully!`);
     } catch (error) {
       console.error("Setup error:", error);
-      if (typeof UI !== "undefined") {
-        UI.showToast("Setup failed. Please try again.", "error");
-      }
+      UI.showToast("Setup failed. Please try again.", "error");
       if (btn) {
         btn.innerHTML = '<i class="fas fa-fingerprint"></i> Set Up Now';
         btn.disabled = false;

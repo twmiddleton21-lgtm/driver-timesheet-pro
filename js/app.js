@@ -121,15 +121,28 @@ const App = {
    * @param {string} viewName - Name of view to switch to
    */
   switchView(viewName) {
-    // Hide all views
+    console.log(`Switching to view: ${viewName}`);
+
+    // Close all modals first to prevent any blocking layers
+    this.closeAllModals();
+
+    // Hide all views and reset their pointer events
     document.querySelectorAll(".view-section").forEach((el) => {
       el.classList.add("hidden");
+      el.style.pointerEvents = "";
+      el.style.display = "";
     });
 
     // Show selected view
     const targetView = document.getElementById(`${viewName}-view`);
     if (targetView) {
       targetView.classList.remove("hidden");
+      targetView.style.pointerEvents = "auto";
+      targetView.style.display = "";
+      console.log(`✅ Showed view: ${viewName}-view`);
+    } else {
+      console.error(`❌ View not found: ${viewName}-view`);
+      return;
     }
 
     // Update nav items
@@ -178,6 +191,11 @@ const App = {
       }
     }
     if (viewName === "settings") {
+      console.log("Initializing settings view");
+      // Ensure settings user is set
+      if (typeof initSettings === "function" && this.currentUser) {
+        initSettings(this.currentUser);
+      }
       if (typeof updateApiKeyStatus === "function") {
         updateApiKeyStatus();
       } else if (
@@ -287,6 +305,19 @@ const App = {
       window.deferredInstallPrompt = null;
       UI.showToast("App installed successfully!", "success");
     });
+
+    // Handle page unload - close all modals to prevent "Document removed" message
+    window.addEventListener("beforeunload", () => {
+      this.closeAllModals();
+    });
+
+    // Handle page load - ensure clean state
+    window.addEventListener("load", () => {
+      // Clear any stuck modals or overlays from previous session
+      document.body.style.overflow = "";
+      document.body.style.pointerEvents = "";
+      document.querySelectorAll(".modal-backdrop").forEach((el) => el.remove());
+    });
   },
 
   /**
@@ -296,23 +327,37 @@ const App = {
     const modals = [
       "gemini-key-modal",
       "biometric-setup-modal",
+      "biometric-setup-prompt",
       "delete-modal",
       "remove-account-modal",
       "week-modal",
       "vor-detail-modal",
       "share-fallback-modal",
       "fullscreen-viewer",
+      "auto-login-screen",
     ];
 
     modals.forEach((id) => {
       const modal = document.getElementById(id);
       if (modal) {
         modal.classList.add("hidden");
+        modal.style.pointerEvents = "";
+        modal.style.display = "";
       }
     });
 
-    // Restore body scroll
+    // Remove any lingering modal backdrops or blocking overlays
+    document
+      .querySelectorAll(".modal-backdrop, .fixed.inset-0.z-50")
+      .forEach((el) => {
+        if (el.id && modals.includes(el.id)) {
+          el.classList.add("hidden");
+        }
+      });
+
+    // Restore body scroll and pointer events
     document.body.style.overflow = "";
+    document.body.style.pointerEvents = "";
   },
 
   /**
