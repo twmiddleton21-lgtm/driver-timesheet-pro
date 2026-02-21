@@ -112,7 +112,7 @@ const API = {
   },
 };
 
-// Settings management - delegates to settings.js global functions
+// Settings management - FIXED: Proper dark mode persistence
 const Settings = {
   // Initialize settings - delegates to settings.js initSettings()
   init(user) {
@@ -146,19 +146,39 @@ const Settings = {
     this.set("showStorageWidget", value);
   },
 
+  // FIXED: Proper dark mode getter/setter with immediate DOM application
   get darkMode() {
-    return localStorage.getItem("darkMode") === "true";
+    return localStorage.getItem("ts_dark_mode") === "true";
   },
 
   set darkMode(value) {
-    localStorage.setItem("darkMode", value ? "true" : "false");
-    if (value) {
+    localStorage.setItem("ts_dark_mode", value ? "true" : "false");
+    this.applyDarkMode(value);
+  },
+
+  // FIXED: Apply dark mode to DOM immediately
+  applyDarkMode(isDark) {
+    if (isDark) {
       document.documentElement.classList.add("dark");
       document.documentElement.classList.remove("light");
     } else {
       document.documentElement.classList.remove("dark");
       document.documentElement.classList.add("light");
     }
+    // Update label if exists
+    const label = document.getElementById("theme-label");
+    if (label) {
+      label.textContent = isDark ? "Light Mode" : "Dark Mode";
+    }
+    console.log("Dark mode applied:", isDark);
+  },
+
+  // FIXED: Load and apply saved dark mode on startup
+  loadSavedTheme() {
+    const isDark = this.darkMode;
+    this.applyDarkMode(isDark);
+    console.log("Loaded saved theme, dark mode:", isDark);
+    return isDark;
   },
 
   get lastLoggedInUser() {
@@ -225,16 +245,12 @@ const Settings = {
     }
   },
 
+  // FIXED: Toggle theme properly saves and applies
   toggleTheme() {
-    if (typeof toggleTheme === "function") {
-      toggleTheme();
-    } else {
-      const isDark = document.documentElement.classList.toggle("dark");
-      const label = document.getElementById("theme-label");
-      if (label) {
-        label.textContent = isDark ? "Light Mode" : "Dark Mode";
-      }
-    }
+    const newValue = !this.darkMode;
+    this.darkMode = newValue;
+    console.log("Theme toggled, new dark mode:", newValue);
+    return newValue;
   },
 
   toggleStorageWidget() {
@@ -305,6 +321,19 @@ const DOCS = {
     return CONFIG.DOC_TYPES;
   },
 };
+
+// FIXED: Apply saved theme immediately when script loads (before DOM ready)
+(function loadThemeEarly() {
+  const isDark = localStorage.getItem("ts_dark_mode") === "true";
+  if (isDark) {
+    document.documentElement.classList.add("dark");
+    document.documentElement.classList.remove("light");
+  } else {
+    document.documentElement.classList.remove("dark");
+    document.documentElement.classList.add("light");
+  }
+  console.log("Early theme load, dark mode:", isDark);
+})();
 
 // Export for modules
 if (typeof module !== "undefined" && module.exports) {

@@ -431,7 +431,7 @@ function getDeviceInfo() {
 }
 
 /**
- * Update theme label
+ * Update theme label - FIXED to check actual DOM state
  */
 function updateThemeLabel() {
   const isDark = document.documentElement.classList.contains("dark");
@@ -442,10 +442,19 @@ function updateThemeLabel() {
 }
 
 /**
- * Toggle theme
+ * Toggle theme - FIXED to use Settings object for persistence
  */
 function toggleTheme() {
+  // Use Settings object which properly saves to localStorage
+  if (typeof Settings !== "undefined" && Settings.toggleTheme) {
+    const isDark = Settings.toggleTheme();
+    updateThemeLabel();
+    return isDark;
+  }
+
+  // Fallback if Settings not available
   const isDark = document.documentElement.classList.toggle("dark");
+  localStorage.setItem("ts_dark_mode", isDark ? "true" : "false");
   updateThemeLabel();
   return isDark;
 }

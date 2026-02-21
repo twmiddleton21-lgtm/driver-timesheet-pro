@@ -504,9 +504,131 @@ const DB = {
       exportedAt: new Date().toISOString(),
     };
   },
+
+  // ==========================================
+  // STORAGE QUOTA - FIXED VERSION
+  // ==========================================
+
+  /**
+   * Check storage quota with proper fallbacks
+   * Works on all browsers including Safari/iOS
+   */
+  async checkStorageQuota() {
+    let result = {
+      used: 0,
+      quota: 0,
+      percent: 0,
+      usedMB: "0.0",
+      quotaMB: "Unknown",
+      available: "Unknown",
+      supported: false,
+    };
+
+    try {
+      // Try the modern Storage API first
+      if ("storage" in navigator && "estimate" in navigator.storage) {
+        const estimate = await navigator.storage.estimate();
+
+        if (estimate) {
+          result.used = estimate.usage || 0;
+          result.quota = estimate.quota || 0;
+          result.supported = true;
+
+          // Calculate percentage
+          if (result.quota > 0) {
+            result.percent = Math.round((result.used / result.quota) * 100);
+            result.quotaMB = (result.quota / (1024 * 1024)).toFixed(0);
+            result.available =
+              ((result.quota - result.used) / (1024 * 1024)).toFixed(0) + " MB";
+          } else {
+            // Quota is 0 or unavailable (common in Safari)
+            result.percent = 0;
+            result.quotaMB = "Unlimited";
+            result.available = "Unlimited";
+          }
+
+          result.usedMB = (result.used / (1024 * 1024)).toFixed(1);
+        }
+      } else {
+        // Storage API not supported - calculate localStorage usage as fallback
+        console.log("Storage API not supported, using fallback");
+        result = this.calculateLocalStorageSize();
+      }
+    } catch (error) {
+      console.warn("Storage estimate failed:", error);
+      // Use fallback calculation
+      result = this.calculateLocalStorageSize();
+    }
+
+    // Update UI if elements exist
+    this.updateStorageUI(result);
+
+    return result;
+  },
+
+  /**
+   * Calculate storage used by localStorage and IndexedDB (fallback)
+   */
+  calculateLocalStorageSize() {
+    let totalSize = 0;
+
+    // Calculate localStorage size
+    for (let key in localStorage) {
+      if (localStorage.hasOwnProperty(key)) {
+        totalSize += localStorage[key].length * 2; // UTF-16 = 2 bytes per char
+      }
+    }
+
+    // Estimate IndexedDB size (rough estimate)
+    // Note: We can't accurately measure IndexedDB without iterating all stores
+    // So we add a buffer based on known data
+    const bufferMB = 5; // Assume ~5MB for IndexedDB images/docs
+
+    return {
+      used: totalSize,
+      quota: 0, // Unknown
+      percent: 0,
+      usedMB: (totalSize / (1024 * 1024) + bufferMB).toFixed(1),
+      quotaMB: "Unknown",
+      available: "Unknown",
+      supported: false,
+      isEstimate: true,
+    };
+  },
+
+  /**
+   * Update storage UI elements
+   */
+  updateStorageUI(data) {
+    // Update storage widget if it exists
+    const usedEl = document.getElementById("storage-used");
+    const availableEl = document.getElementById("storage-available");
+    const barEl = document.getElementById("storage-bar");
+    const percentEl = document.getElementById("storage-percent");
+
+    if (usedEl) usedEl.textContent = data.usedMB + " MB";
+    if (availableEl) availableEl.textContent = data.available;
+
+    if (barEl) {
+      barEl.style.width = data.percent + "%";
+      // Color code based on usage
+      barEl.className =
+        "h-full transition-all duration-300 " +
+        (data.percent > 90
+          ? "bg-red-500"
+          : data.percent > 70
+            ? "bg-yellow-500"
+            : "bg-blue-500");
+    }
+
+    if (percentEl) percentEl.textContent = data.percent + "%";
+  },
 };
 
 // Export for modules
 if (typeof module !== "undefined" && module.exports) {
   module.exports = DB;
 }
+
+// Expose to window for global access
+window.DB = DB;

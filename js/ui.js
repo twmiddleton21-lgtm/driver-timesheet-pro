@@ -34,6 +34,12 @@ const UI = {
    * Show toast notification
    */
   showToast(message, type = "success") {
+    // SILENT DURING PAGE LOAD/UNLOAD: Don't show toasts in first 2 seconds or if unloading
+    if (this._isPageLoading || this._isUnloading) {
+      console.log("Toast suppressed (page loading/unloading):", message);
+      return;
+    }
+
     const toast = document.getElementById("toast");
     const msgEl = document.getElementById("toast-message");
     const iconEl = document.getElementById("toast-icon");
@@ -85,6 +91,29 @@ const UI = {
   // Alias for compatibility
   show(message, type = "success") {
     return this.showToast(message, type);
+  },
+
+  // ==========================================
+  // SILENT MODE CONTROL
+  // ==========================================
+
+  _isPageLoading: true, // Start as true
+  _isUnloading: false,
+
+  /**
+   * Enable silent mode (no toasts)
+   */
+  enableSilentMode() {
+    this._isUnloading = true;
+    console.log("UI silent mode enabled");
+  },
+
+  /**
+   * Disable silent mode (allow toasts)
+   */
+  disableSilentMode() {
+    this._isUnloading = false;
+    console.log("UI silent mode disabled");
   },
 
   // ==========================================
@@ -540,3 +569,9 @@ window.UI = UI;
 // Global compatibility for functions that might be called directly
 window.showToast = (message, type) => UI.showToast(message, type);
 window.show = (message, type) => UI.show(message, type);
+
+// NEW: Disable silent mode after page loads
+setTimeout(() => {
+  UI._isPageLoading = false;
+  console.log("UI toasts enabled");
+}, 2000);

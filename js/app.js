@@ -6,6 +6,7 @@
 const App = {
   initialized: false,
   currentUser: null,
+  isUnloading: false, // Track if page is unloading
 
   /**
    * Initialize the application
@@ -18,6 +19,11 @@ const App = {
     );
 
     try {
+      // FIXED: Load saved theme early (before any UI renders)
+      if (typeof Settings !== "undefined" && Settings.loadSavedTheme) {
+        Settings.loadSavedTheme();
+      }
+
       // Initialize database first
       await DB.init();
       console.log("✅ Database initialized");
@@ -48,7 +54,10 @@ const App = {
       console.log("✅ Application initialized successfully");
     } catch (error) {
       console.error("❌ Initialization failed:", error);
-      UI.showToast("Failed to initialize app. Please refresh.", "error");
+      // Only show error toast if not during page load
+      if (!this.isUnloading && typeof UI !== "undefined") {
+        UI.showToast("Failed to initialize app. Please refresh.", "error");
+      }
     }
   },
 
@@ -116,13 +125,16 @@ const App = {
     this.fixNavButtons();
 
     // Show welcome toast AFTER a small delay to ensure UI is ready
-    setTimeout(() => {
-      const deviceInfo = Utils.getDeviceInfo();
-      const welcomeMsg = fromBiometric
-        ? `Welcome, ${user.username} (${deviceInfo.platform})`
-        : `Welcome, ${user.username}`;
-      UI.showToast(welcomeMsg);
-    }, 100);
+    // But only if not during page unload
+    if (!this.isUnloading) {
+      setTimeout(() => {
+        const deviceInfo = Utils.getDeviceInfo();
+        const welcomeMsg = fromBiometric
+          ? `Welcome, ${user.username} (${deviceInfo.platform})`
+          : `Welcome, ${user.username}`;
+        UI.showToast(welcomeMsg);
+      }, 100);
+    }
   },
 
   /**
@@ -299,13 +311,17 @@ const App = {
       }
     });
 
-    // Handle online/offline
+    // Handle online/offline - only show toasts if not unloading
     window.addEventListener("online", () => {
-      UI.showToast("Back online", "success");
+      if (!this.isUnloading && typeof UI !== "undefined") {
+        UI.showToast("Back online", "success");
+      }
     });
 
     window.addEventListener("offline", () => {
-      UI.showToast("Offline mode - data saved locally", "info");
+      if (!this.isUnloading && typeof UI !== "undefined") {
+        UI.showToast("Offline mode - data saved locally", "info");
+      }
     });
 
     // Keyboard shortcuts
@@ -332,31 +348,188 @@ const App = {
       console.log("👍 App installable");
     });
 
-    // Handle app installed
+    // Handle app installed - only show toast if not unloading
     window.addEventListener("appinstalled", () => {
       console.log("🎉 App installed");
       window.deferredInstallPrompt = null;
-      UI.showToast("App installed successfully!", "success");
+      if (!this.isUnloading && typeof UI !== "undefined") {
+        UI.showToast("App installed successfully!", "success");
+      }
     });
 
-    // Handle page unload - close all modals to prevent "Document removed" message
+    // Handle page unload - close all modals silently (no toasts)
     window.addEventListener("beforeunload", () => {
-      this.closeAllModals();
+      this.isUnloading = true; // Set flag to prevent toasts
+      // Also set UI flag if available
+      if (typeof UI !== "undefined") {
+        UI._isUnloading = true;
+      }
+      this.closeAllModalsSilent(); // Use silent version
     });
 
-    // Handle page load - ensure clean state
+    // Handle page load - ensure clean state and reset flags
     window.addEventListener("load", () => {
+      this.isUnloading = false; // Reset flag
+      if (typeof UI !== "undefined") {
+        UI._isUnloading = false;
+      }
       // Clear any stuck modals or overlays from previous session
       document.body.style.overflow = "";
       document.body.style.pointerEvents = "";
       document.querySelectorAll(".modal-backdrop").forEach((el) => el.remove());
     });
+
+    // CRITICAL FIX: Use event delegation for all modal close buttons
+    // This catches clicks even on dynamically added content
+    document.addEventListener("click", (e) => {
+      // Check if clicked element is or is inside a close button
+      const closeBtn = e.target.closest(
+        "[onclick*='closeWeekModal'], [onclick*='closeVORModal'], [onclick*='closeModal'], .modal-close, .close-modal, [data-close-modal], .close-btn",
+      );
+
+      if (closeBtn) {
+        // Determine which modal to close
+        const modal = closeBtn.closest("[id$='-modal']");
+        if (modal) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.closeModal(modal.id);
+          return;
+        }
+      }
+
+      // Check if clicking on modal backdrop (the modal container itself, not its content)
+      const clickedModal = e.target.closest("[id$='-modal']");
+      if (clickedModal && e.target === clickedModal) {
+        // Clicked on the backdrop/overlay itself
+        this.closeModal(clickedModal.id);
+      }
+    });
+
+    // Also setup direct handlers after a short delay to catch any already-rendered modals
+    setTimeout(() => this.setupModalCloseHandlers(), 100);
+  },
+
+  /**
+   * Setup modal close button handlers - direct attachment
+   */
+  setupModalCloseHandlers() {
+    // Find ALL potential close buttons in modals
+    const selectors = [
+      "#week-modal button",
+      "#vor-detail-modal button",
+      "[id$='-modal'] button",
+      "[id$='-modal'] [onclick*='close']",
+      ".modal-close",
+      ".close-modal",
+      "[data-close-modal]",
+      ".close-btn",
+    ];
+
+    document.querySelectorAll(selectors.join(", ")).forEach((btn) => {
+      // Remove any existing click handlers to prevent duplicates
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn, btn);
+
+      newBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Find the parent modal
+        const modal = newBtn.closest("[id$='-modal']");
+        if (modal) {
+          console.log("Closing modal via direct handler:", modal.id);
+          this.closeModal(modal.id);
+        }
+      });
+    });
+  },
+
+  /**
+   * Close a specific modal by ID
+   */
+  closeModal(modalId) {
+    console.log("Attempting to close modal:", modalId);
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.pointerEvents = "";
+      modal.style.display = "";
+
+      console.log("✅ Modal closed:", modalId);
+
+      // Restore body scroll if no other modals are open
+      const anyOpen =
+        document.querySelectorAll("[id$='-modal']:not(.hidden)").length > 0;
+      if (!anyOpen) {
+        document.body.style.overflow = "";
+      }
+      return true;
+    }
+    console.warn("❌ Modal not found:", modalId);
+    return false;
+  },
+
+  /**
+   * Close week modal specifically
+   */
+  closeWeekModal() {
+    console.log("closeWeekModal called");
+    return this.closeModal("week-modal");
+  },
+
+  /**
+   * Close VOR detail modal specifically
+   */
+  closeVORModal() {
+    console.log("closeVORModal called");
+    return this.closeModal("vor-detail-modal");
   },
 
   /**
    * Close all open modals
    */
   closeAllModals() {
+    const modals = [
+      "gemini-key-modal",
+      "biometric-setup-modal",
+      "biometric-setup-prompt",
+      "delete-modal",
+      "remove-account-modal",
+      "week-modal",
+      "vor-detail-modal",
+      "share-fallback-modal",
+      "fullscreen-viewer",
+      "auto-login-screen",
+    ];
+
+    modals.forEach((id) => {
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.classList.add("hidden");
+        modal.style.pointerEvents = "";
+        modal.style.display = "";
+      }
+    });
+
+    // Remove any lingering modal backdrops or blocking overlays
+    document
+      .querySelectorAll(".modal-backdrop, .fixed.inset-0.z-50")
+      .forEach((el) => {
+        if (el.id && modals.includes(el.id)) {
+          el.classList.add("hidden");
+        }
+      });
+
+    // Restore body scroll and pointer events
+    document.body.style.overflow = "";
+    document.body.style.pointerEvents = "";
+  },
+
+  /**
+   * Close all modals silently (no toasts, for page unload)
+   */
+  closeAllModalsSilent() {
     const modals = [
       "gemini-key-modal",
       "biometric-setup-modal",
@@ -416,3 +589,21 @@ if (document.readyState === "loading") {
 } else {
   App.init();
 }
+
+// Expose close functions globally for inline onclick handlers
+window.closeWeekModal = function () {
+  console.log("Global closeWeekModal called");
+  return App.closeWeekModal();
+};
+window.closeVORModal = function () {
+  console.log("Global closeVORModal called");
+  return App.closeVORModal();
+};
+window.closeModal = function (id) {
+  console.log("Global closeModal called:", id);
+  return App.closeModal(id);
+};
+window.closeAllModals = function () {
+  console.log("Global closeAllModals called");
+  return App.closeAllModals();
+};
