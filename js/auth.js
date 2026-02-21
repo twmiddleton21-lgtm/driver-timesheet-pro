@@ -10,6 +10,7 @@ const Auth = {
   autoLoginAttempted: false,
   userJustCreated: null,
   _quickAuthUser: null,
+  _initComplete: false,
 
   /**
    * Initialize authentication
@@ -17,13 +18,37 @@ const Auth = {
   async init() {
     console.log("🔐 Auth initializing...");
 
+    // Wait for DOM to be fully loaded
+    if (document.readyState === "loading") {
+      await new Promise((resolve) => {
+        document.addEventListener("DOMContentLoaded", resolve, { once: true });
+      });
+    }
+
     // Display version
     const versionEl = document.getElementById("version-display");
     if (versionEl && typeof CONFIG !== "undefined") {
       versionEl.textContent = `v${CONFIG.APP_VERSION}`;
     }
 
-    // Populate user select
+    // DB should already be initialized by App.init(), but wait briefly to be safe
+    let attempts = 0;
+    while (attempts < 10) {
+      if (typeof DB !== "undefined" && DB.users) {
+        console.log("✅ DB is ready");
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 50));
+      attempts++;
+    }
+
+    if (typeof DB === "undefined" || !DB.users) {
+      console.error("❌ DB not available after waiting");
+    }
+
+    // Small delay to ensure DOM is fully rendered
+    await new Promise((r) => setTimeout(r, 50));
+
     this.populateUserSelect();
 
     // Check biometric availability
@@ -35,10 +60,13 @@ const Auth = {
     // Attempt auto-login
     await this.attemptAutoLogin();
 
+    this._initComplete = true;
     console.log(
       "🔐 Auth initialized, biometric available:",
       this.biometricAvailable,
     );
+
+    return Promise.resolve();
   },
 
   /**
@@ -96,7 +124,10 @@ const Auth = {
 
   populateUserSelect() {
     const select = document.getElementById("user-select");
-    if (!select) return;
+    if (!select) {
+      console.error("❌ user-select element not found in DOM");
+      return;
+    }
 
     // Ensure DB is available
     if (typeof DB === "undefined" || !DB.users) {
@@ -107,11 +138,21 @@ const Auth = {
 
     try {
       const users = DB.users.getAll();
-      select.innerHTML =
-        '<option value="">-- Select User --</option>' +
-        users
-          .map((u) => `<option value="${u.username}">${u.username}</option>`)
-          .join("");
+      console.log(
+        "👥 Found users:",
+        users.length,
+        users.map((u) => u.username),
+      );
+
+      // Force rebuild the select options
+      select.innerHTML = '<option value="">-- Select User --</option>';
+
+      users.forEach((user) => {
+        const option = document.createElement("option");
+        option.value = user.username;
+        option.textContent = user.username;
+        select.appendChild(option);
+      });
 
       // If only one user, auto-select
       if (users.length === 1) {
@@ -120,6 +161,8 @@ const Auth = {
         if (pinSection) pinSection.classList.remove("hidden");
         this.updateBiometricLoginButton();
       }
+
+      console.log("✅ Dropdown populated with", users.length, "users");
     } catch (error) {
       console.error("❌ Error populating users:", error);
       select.innerHTML = '<option value="">-- Error Loading Users --</option>';
@@ -941,3 +984,6 @@ const Auth = {
     return !!this.currentUser;
   },
 };
+
+// Expose to window for global access
+window.Auth = Auth;

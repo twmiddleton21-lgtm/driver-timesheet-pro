@@ -25,11 +25,21 @@ const App = {
       // Initialize all modules
       Utils.init();
       UI.init();
+
+      // Initialize Auth BEFORE other modules that might depend on it
+      await Auth.init();
+
       Calendar.init();
       Scan.init();
       VOR.init();
       History.init();
-      Settings.init();
+
+      // Initialize settings module
+      if (typeof initSettings === "function") {
+        initSettings();
+      } else if (typeof Settings !== "undefined" && Settings.init) {
+        Settings.init();
+      }
 
       // Setup global event listeners
       this.setupGlobalEvents();
@@ -61,19 +71,42 @@ const App = {
     if (authScreen) authScreen.classList.add("hidden");
     if (mainApp) mainApp.classList.remove("hidden");
 
-    // Initialize settings with current user
-    Settings.init(user);
+    // Initialize settings with current user - use initSettings from settings.js if available
+    if (typeof initSettings === "function") {
+      initSettings(user);
+    } else if (typeof Settings !== "undefined" && Settings.init) {
+      Settings.init(user);
+    }
 
     // Set default dates
     this.setDefaultDates();
 
     // Initial render
-    Calendar.render();
-    Calendar.updateStats();
-    Calendar.renderRecent();
-    DB.checkStorageQuota();
-    Settings.updateApiKeyStatus();
-    Settings.updateStorageWidgetVisibility();
+    if (typeof Calendar !== "undefined") {
+      Calendar.render();
+      Calendar.updateStats();
+      Calendar.renderRecent();
+    }
+
+    if (typeof DB !== "undefined" && DB.checkStorageQuota) {
+      DB.checkStorageQuota();
+    }
+
+    // Update API key status and storage widget if functions exist
+    if (typeof updateApiKeyStatus === "function") {
+      updateApiKeyStatus();
+    } else if (typeof Settings !== "undefined" && Settings.updateApiKeyStatus) {
+      Settings.updateApiKeyStatus();
+    }
+
+    if (typeof updateStorageWidgetVisibility === "function") {
+      updateStorageWidgetVisibility();
+    } else if (
+      typeof Settings !== "undefined" &&
+      Settings.updateStorageWidgetVisibility
+    ) {
+      Settings.updateStorageWidgetVisibility();
+    }
 
     // Show welcome toast
     const deviceInfo = Utils.getDeviceInfo();
@@ -116,18 +149,54 @@ const App = {
     }
 
     // View-specific initialization
-    if (viewName === "history") History.render();
+    if (viewName === "history" && typeof History !== "undefined")
+      History.render();
     if (viewName === "dashboard") {
-      Calendar.render();
-      Calendar.updateStats();
+      if (typeof Calendar !== "undefined") {
+        Calendar.render();
+        Calendar.updateStats();
+      }
     }
-    if (viewName === "scan") Settings.updateApiKeyStatus();
-    if (viewName === "vor") Settings.updateApiKeyStatus();
+    if (viewName === "scan") {
+      if (typeof updateApiKeyStatus === "function") {
+        updateApiKeyStatus();
+      } else if (
+        typeof Settings !== "undefined" &&
+        Settings.updateApiKeyStatus
+      ) {
+        Settings.updateApiKeyStatus();
+      }
+    }
+    if (viewName === "vor") {
+      if (typeof updateApiKeyStatus === "function") {
+        updateApiKeyStatus();
+      } else if (
+        typeof Settings !== "undefined" &&
+        Settings.updateApiKeyStatus
+      ) {
+        Settings.updateApiKeyStatus();
+      }
+    }
     if (viewName === "settings") {
-      Settings.updateApiKeyStatus();
-      Settings.updateBiometricSettingsUI();
+      if (typeof updateApiKeyStatus === "function") {
+        updateApiKeyStatus();
+      } else if (
+        typeof Settings !== "undefined" &&
+        Settings.updateApiKeyStatus
+      ) {
+        Settings.updateApiKeyStatus();
+      }
+      if (typeof updateBiometricSettingsUI === "function") {
+        updateBiometricSettingsUI();
+      } else if (
+        typeof Settings !== "undefined" &&
+        Settings.updateBiometricSettingsUI
+      ) {
+        Settings.updateBiometricSettingsUI();
+      }
     }
-    if (viewName === "archive") History.renderArchiveList();
+    if (viewName === "archive" && typeof History !== "undefined")
+      History.renderArchiveList();
   },
 
   /**
@@ -196,9 +265,9 @@ const App = {
       }
 
       // Ctrl/Cmd + number for view switching
-      if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "4") {
+      if ((e.ctrlKey || e.metaKey) && e.key >= "1" && e.key <= "5") {
         e.preventDefault();
-        const views = ["dashboard", "scan", "vor", "history"];
+        const views = ["dashboard", "scan", "vor", "history", "settings"];
         const viewIndex = parseInt(e.key) - 1;
         if (views[viewIndex]) {
           this.switchView(views[viewIndex]);
