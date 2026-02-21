@@ -5,6 +5,18 @@
 
 const Utils = {
   // ==========================================
+  // INITIALIZATION
+  // ==========================================
+
+  /**
+   * Initialize utilities module
+   */
+  init() {
+    console.log("📦 Utils initialized");
+    return Promise.resolve();
+  },
+
+  // ==========================================
   // DATE UTILITIES
   // ==========================================
 
@@ -268,6 +280,7 @@ const Utils = {
    * Hash a PIN (simple hash for comparison)
    */
   hashPin(pin) {
+    if (!pin) return "";
     let hash = 0;
     for (let i = 0; i < pin.length; i++) {
       const char = pin.charCodeAt(i);
@@ -341,7 +354,9 @@ const Utils = {
   /**
    * Debounce function
    */
-  debounce(func, wait = CONFIG.DEBOUNCE_DELAY) {
+  debounce(func, wait) {
+    wait =
+      wait || (typeof CONFIG !== "undefined" ? CONFIG.DEBOUNCE_DELAY : 250);
     let timeout;
     return function executedFunction(...args) {
       const later = () => {
@@ -464,3 +479,6 @@ const Utils = {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = Utils;
 }
+
+// CRITICAL: Expose to window for browser global access
+window.Utils = Utils;

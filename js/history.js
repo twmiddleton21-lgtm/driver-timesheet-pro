@@ -13,7 +13,9 @@ const History = {
   // ==========================================
 
   init() {
+    console.log("📚 History initialized");
     this.render();
+    return Promise.resolve();
   },
 
   // ==========================================

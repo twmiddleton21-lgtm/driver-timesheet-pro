@@ -15,8 +15,10 @@ const VOR = {
   // ==========================================
 
   init() {
+    console.log("🚛 VOR initialized");
     this.setupEventListeners();
     this.resetForm();
+    return Promise.resolve();
   },
 
   setupEventListeners() {

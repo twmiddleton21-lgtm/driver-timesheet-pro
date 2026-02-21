@@ -85,6 +85,12 @@ const Auth = {
           confirmPin.focus();
         }
       });
+
+      confirmPin.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          this.createUser();
+        }
+      });
     }
   },
 
@@ -305,6 +311,8 @@ const Auth = {
    * Create new user - FIXED VERSION
    */
   createUser() {
+    console.log("📝 Starting user creation...");
+
     const usernameInput = document.getElementById("new-username");
     const newPinInput = document.getElementById("new-pin");
     const confirmPinInput = document.getElementById("confirm-pin");
@@ -313,10 +321,11 @@ const Auth = {
     const pin = newPinInput?.value;
     const confirmPin = confirmPinInput?.value;
 
-    console.log("📝 Creating user:", username);
+    console.log("Username:", username, "PIN length:", pin?.length);
 
     // Validation
     if (!username) {
+      console.log("❌ Validation failed: no username");
       if (typeof UI !== "undefined") {
         UI.showToast("Enter driver name", "error");
       } else {
@@ -338,6 +347,7 @@ const Auth = {
     }
 
     if (DB.users.exists(username)) {
+      console.log("❌ User already exists:", username);
       if (typeof UI !== "undefined") {
         UI.showToast("User already exists", "error");
       } else {
@@ -348,6 +358,7 @@ const Auth = {
     }
 
     if (!pin || pin.length !== 4) {
+      console.log("❌ PIN validation failed");
       if (typeof UI !== "undefined") {
         UI.showToast("PIN must be 4 digits", "error");
       } else {
@@ -358,6 +369,7 @@ const Auth = {
     }
 
     if (pin !== confirmPin) {
+      console.log("❌ PINs don't match");
       if (typeof UI !== "undefined") {
         UI.showToast("PINs do not match", "error");
       } else {
@@ -372,6 +384,7 @@ const Auth = {
     let hashedPin;
     if (typeof Utils !== "undefined" && Utils.hashPin) {
       hashedPin = Utils.hashPin(pin);
+      console.log("PIN hashed successfully");
     } else {
       // Fallback simple hash if Utils not available
       console.warn("⚠️ Utils.hashPin not available, using fallback");
@@ -393,16 +406,18 @@ const Auth = {
       const saved = DB.users.add(newUser);
 
       if (!saved) {
-        throw new Error("DB.users.add returned falsy value");
+        throw new Error("DB.users.add returned null or undefined");
       }
 
-      this.userJustCreated = newUser;
+      this.userJustCreated = saved;
 
       if (typeof UI !== "undefined") {
         UI.showToast("Driver created successfully", "success");
+      } else {
+        console.log("✅ User created successfully");
       }
 
-      console.log("✅ User created:", newUser.username);
+      console.log("✅ User created:", saved.username);
 
       // Check for biometric setup
       if (this.biometricAvailable) {
@@ -410,7 +425,7 @@ const Auth = {
         this.showBiometricSetupPrompt();
       } else {
         console.log("📱 Biometric not available, completing login");
-        this.completeLogin(newUser, false);
+        this.completeLogin(saved, false);
       }
     } catch (error) {
       console.error("❌ Error creating user:", error);

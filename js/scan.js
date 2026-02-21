@@ -23,8 +23,10 @@ const Scan = {
   // ==========================================
 
   init() {
+    console.log("📸 Scan initialized");
     this.setupEventListeners();
     this.resetForm();
+    return Promise.resolve();
   },
 
   setupEventListeners() {

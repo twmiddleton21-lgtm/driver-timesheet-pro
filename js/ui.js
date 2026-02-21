@@ -5,16 +5,34 @@
 
 const UI = {
   // ==========================================
+  // INITIALIZATION
+  // ==========================================
+
+  /**
+   * Initialize UI module
+   */
+  init() {
+    console.log("🎨 UI initialized");
+    return Promise.resolve();
+  },
+
+  // ==========================================
   // TOAST NOTIFICATIONS
   // ==========================================
 
   /**
    * Show toast notification
    */
-  show(message, type = "success") {
+  showToast(message, type = "success") {
     const toast = document.getElementById("toast");
     const msgEl = document.getElementById("toast-message");
     const iconEl = document.getElementById("toast-icon");
+
+    if (!toast || !msgEl || !iconEl) {
+      console.warn("Toast elements not found, falling back to alert");
+      alert(message);
+      return;
+    }
 
     // Set icon based on type
     const icons = {
@@ -41,7 +59,12 @@ const UI = {
     clearTimeout(this._toastTimeout);
     this._toastTimeout = setTimeout(() => {
       toast.classList.add("-translate-y-20", "opacity-0");
-    }, CONFIG.TOAST_DURATION);
+    }, 3000);
+  },
+
+  // Alias for compatibility
+  show(message, type = "success") {
+    return this.showToast(message, type);
   },
 
   // ==========================================
@@ -200,7 +223,7 @@ const UI = {
     link.href = imageUrl;
     link.download = filename;
     link.click();
-    this.show("Image saved to downloads", "success");
+    this.showToast("Image saved to downloads", "success");
   },
 
   // ==========================================
@@ -343,7 +366,7 @@ const UI = {
     const missing = [];
 
     fields.forEach((field) => {
-      if (Utils.isEmpty(data[field])) {
+      if (!data[field] || data[field] === "") {
         missing.push(field);
         const el = form.querySelector(`[name="${field}"]`);
         if (el) {
@@ -439,7 +462,6 @@ const UI = {
    */
   toggleTheme() {
     const isDark = document.documentElement.classList.toggle("dark");
-    Settings.darkMode = isDark;
 
     // Update label if exists
     const label = document.getElementById("theme-label");
@@ -491,3 +513,10 @@ const UI = {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = UI;
 }
+
+// CRITICAL: Expose to window for browser global access
+window.UI = UI;
+
+// Global compatibility for functions that might be called directly
+window.showToast = (message, type) => UI.showToast(message, type);
+window.show = (message, type) => UI.show(message, type);

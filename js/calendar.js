@@ -11,6 +11,8 @@ const Calendar = {
    * Initialize calendar module
    */
   init() {
+    console.log("📅 Calendar initialized");
+
     // Set up event listeners
     const scanDateSelect = document.getElementById("scan-date-select");
     if (scanDateSelect) {
@@ -18,6 +20,8 @@ const Calendar = {
         this.updateScanWeekDisplay(),
       );
     }
+
+    return Promise.resolve();
   },
 
   /**

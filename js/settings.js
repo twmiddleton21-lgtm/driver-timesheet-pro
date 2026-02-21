@@ -12,12 +12,14 @@ let currentSettingsUser = null;
  * @param {Object} user - Current user object
  */
 function initSettings(user) {
+  console.log("⚙️ Settings initialized");
   currentSettingsUser = user;
   updateApiKeyStatus();
   checkStorageQuota();
   updateStorageWidgetToggle();
   updateBiometricSettingsUI();
   updateThemeLabel();
+  return Promise.resolve();
 }
 
 /**
@@ -345,6 +347,65 @@ function setupBiometricNow() {
   showBiometricSetupModal();
 }
 
+// Helper functions for biometric
+async function checkBiometricAvailability() {
+  if (typeof Auth !== "undefined" && Auth.isWebAuthnSupported) {
+    return await Auth.isWebAuthnSupported();
+  }
+  return false;
+}
+
+async function getBiometricCredentials(username) {
+  if (typeof DB !== "undefined" && DB.getBiometricCredential) {
+    return await DB.getBiometricCredential(username);
+  }
+  return null;
+}
+
+async function deleteBiometricCredential(username) {
+  if (typeof DB !== "undefined" && DB.deleteBiometricCredential) {
+    return await DB.deleteBiometricCredential(username);
+  }
+}
+
+async function registerBiometric(username) {
+  if (typeof Auth !== "undefined" && Auth.registerBiometric) {
+    return await Auth.registerBiometric(username);
+  }
+  throw new Error("Biometric registration not available");
+}
+
+function getDeviceInfo() {
+  if (typeof Utils !== "undefined" && Utils.getDeviceInfo) {
+    return Utils.getDeviceInfo();
+  }
+  return {
+    platform: "Biometric",
+    hasFaceID: false,
+    isApple: /iPhone|iPad|Mac/.test(navigator.userAgent),
+  };
+}
+
+/**
+ * Update theme label
+ */
+function updateThemeLabel() {
+  const isDark = document.documentElement.classList.contains("dark");
+  const label = document.getElementById("theme-label");
+  if (label) {
+    label.textContent = isDark ? "Light Mode" : "Dark Mode";
+  }
+}
+
+/**
+ * Toggle theme
+ */
+function toggleTheme() {
+  const isDark = document.documentElement.classList.toggle("dark");
+  updateThemeLabel();
+  return isDark;
+}
+
 /**
  * Show delete options modal
  * @param {string} type - 'week' or 'month'
@@ -476,7 +537,7 @@ function closeDeleteModal() {
 async function deleteAllData() {
   if (
     !confirm(
-      "DELETE ALL TIMESHEET DATA?\n\nThis will remove every timesheet and document. This cannot be undone.",
+      "DELETE ALL TIMESHEET DATA?\\n\\nThis will remove every timesheet and document. This cannot be undone.",
     )
   ) {
     return;
@@ -566,6 +627,13 @@ function manageArchives() {
   switchView("archive");
 }
 
+// Storage quota check helper
+async function checkStorageQuota() {
+  if (typeof DB !== "undefined" && DB.checkStorageQuota) {
+    await DB.checkStorageQuota();
+  }
+}
+
 // Expose functions to window for inline onclick handlers
 window.initSettings = initSettings;
 window.updateApiKeyStatus = updateApiKeyStatus;
@@ -591,3 +659,5 @@ window.showRemoveAccountConfirm = showRemoveAccountConfirm;
 window.hideRemoveAccountModal = hideRemoveAccountModal;
 window.executeRemoveAccount = executeRemoveAccount;
 window.manageArchives = manageArchives;
+window.toggleTheme = toggleTheme;
+window.updateThemeLabel = updateThemeLabel;
